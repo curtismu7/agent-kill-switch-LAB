@@ -29,7 +29,7 @@ const MUTATIONS = [
   ['JSON-only body check removed', 'safety.js', 'if (hasBody && !/^application', 'if (false && !/^application'],
   ['Host guard accepts any host', 'safety.js', '!parseHost(req.headers.host)', 'false'],
   ['credential headers accepted', 'safety.js', 'CREDENTIAL_HEADERS.some(', 'CREDENTIAL_HEADERS.every('],
-  ['audit hash chain not verified', 'audit.js', 'if (e.prevHash !== prev)', 'if (false)'],
+  ['audit entry hashes not verified (edited entries pass)', 'audit.js', 'if (a.length !== b.length || !crypto.timingSafeEqual(a, b))', 'if (false)'],
   ['access token value leaks into events', 'runtime.js', "tokenId: t.tokenId, ttlMs", 'tokenId: t.token, ttlMs'],
 ];
 

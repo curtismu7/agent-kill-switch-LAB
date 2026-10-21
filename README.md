@@ -71,7 +71,9 @@ JSON bodies only (2 KB), same-origin only (cross-origin `Origin` / `Sec-Fetch-Si
 
 ## Verification
 
-Run on the working tree (see CHANGELOG for the step): `npm test`, `npm run doctor`, a clean-clone `npm install && npm test`, `npm run red-checks`, gitleaks, and a scan of the git history. The red-check list is in `scripts/red-checks.mjs`.
+Last run (KS0, working tree and a clean clone): `npm test` exits 0 with 81 server tests and 14 script tests; `npm run doctor` exits 0; `npm run red-checks` reports all 23 mutations caught. The mutations (each removes or inverts one check in a copy of the server): rate comparison `>=`, window boundary, money and token budget boundaries, per-call kill check, revoked-token acceptance, revocation-list refresh, token expiry boundary, missing kill/unrevoke audit entries, auto-reset scope, blast-radius token revocation, token issuance left open after a stop, charging a refused call, kill/gate key derivation, operator name on unrevoke, Origin check, Sec-Fetch-Site check, JSON-only body check, Host guard, credential guard, audit hash verification, and a token value leaking into events.
+
+Not verified: the Docker image has not been built or run in this step (the compose file's loopback publish is pinned by a test, not by a running container); there is no web UI to drive in a browser.
 
 ## Ports
 
