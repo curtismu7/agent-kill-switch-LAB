@@ -6,16 +6,24 @@
   "description": "Demo: how an organization stops a runaway AI agent. Rate and cost caps trip automatically, an operator revokes access, and the next call fails. Fully mocked; nothing real is touched.",
   "license": "MIT",
   "workspaces": [
-    "server"
+    "server",
+    "web"
   ],
   "engines": {
     "node": ">=20.12"
   },
   "scripts": {
     "start": "npm start -w server",
-    "test": "npm test -w server && node --test scripts/compose.test.mjs scripts/hooks.test.mjs scripts/docs.test.mjs",
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "test": "npm test -w server && npm test -w web && node --test scripts/compose.test.mjs scripts/hooks.test.mjs scripts/docs.test.mjs",
+    "e2e": "node scripts/e2e.mjs",
     "doctor": "node scripts/doctor.mjs",
     "red-checks": "node scripts/red-checks.mjs",
+    "red-checks-web": "node scripts/red-checks-web.mjs",
     "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
   }
 }
