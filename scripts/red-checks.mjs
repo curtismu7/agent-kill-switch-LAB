@@ -30,6 +30,8 @@ const MUTATIONS = [
   ['Host guard accepts any host', 'safety.js', '!parseHost(req.headers.host)', 'false'],
   ['credential headers accepted', 'safety.js', 'CREDENTIAL_HEADERS.some(', 'CREDENTIAL_HEADERS.every('],
   ['audit entry hashes not verified (edited entries pass)', 'audit.js', 'if (a.length !== b.length || !crypto.timingSafeEqual(a, b))', 'if (false)'],
+  ['UI is served without the same-origin CSP', 'app.js', "'Content-Security-Policy': UI_CSP", "'X-Foo': UI_CSP"],
+  ['live clock lets real time flow into a run', 'clock.js', 'now: () => t,', "now: () => (fake ? t : t + (Date.now() - (globalThis.__ksStart ??= Date.now()))),"],
   ['access token value leaks into events', 'runtime.js', "tokenId: t.tokenId, ttlMs", 'tokenId: t.token, ttlMs'],
 ];
 
