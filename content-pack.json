@@ -1,0 +1,298 @@
+{
+  "schema": "demo-content-pack/1",
+  "id": "agent-kill-switch",
+  "title": "Agent Kill Switch",
+  "version": "0.1.0",
+  "demo": {
+    "id": "agent-kill-switch",
+    "name": "Agent Kill Switch",
+    "catalog": "D14",
+    "baseUrl": "http://localhost:6550",
+    "doctor": "/api/health",
+    "tags": [
+      "kill-switch",
+      "rate-cap",
+      "cost-cap",
+      "revoke",
+      "audit"
+    ]
+  },
+  "glossary": [
+    {
+      "id": "agent-state",
+      "term": "Armed, tripped, killed, reset",
+      "definition": "The four states of an agent. Armed means running under its caps. Tripped means a cap stopped it automatically. Killed means an operator stopped it. Reset means it was restored, by an operator unrevoke or by an auto-reset after a cooldown."
+    },
+    {
+      "id": "audit-trail",
+      "term": "Audit trail",
+      "definition": "An append-only record of every trip, kill, unrevoke, auto-reset and reset. Each entry carries an HMAC hash of its content and the previous entry's hash, so changing or removing an entry breaks the chain. It lives in memory and is lost when the process exits.",
+      "aliases": [
+        "hash chain"
+      ]
+    },
+    {
+      "id": "auto-reset",
+      "term": "Auto-reset",
+      "definition": "An explicit option: after a cooldown, a rate trip is cleared by the gateway itself and an audited auto_reset entry is written. The cooldown here is an invented demo number.",
+      "aliases": [
+        "cooldown"
+      ]
+    },
+    {
+      "id": "blast-radius",
+      "term": "Blast radius",
+      "definition": "How much else a stop affects. Stopping one agent changes nothing about the other agent's tokens, rate window, budget or state; only the global switch stops both."
+    },
+    {
+      "id": "cost-cap",
+      "term": "Cost cap",
+      "definition": "A limit on what an agent may spend: a token budget and a money budget from an invented price table. Each admitted call is charged once, a refused call costs nothing, and spending exactly up to the budget is allowed. Prices here are illustrative, not any vendor's.",
+      "aliases": [
+        "budget",
+        "token budget"
+      ]
+    },
+    {
+      "id": "csrf-guard",
+      "term": "CSRF guard",
+      "definition": "Kill and unrevoke are state-changing requests, so a page on another origin must not be able to send them. The server refuses a cross-origin request with 403, requires JSON bodies and a loopback Host. Tests prove a cross-origin page cannot kill or unrevoke.",
+      "aliases": [
+        "Origin check"
+      ]
+    },
+    {
+      "id": "demo-mode",
+      "term": "Demo mode",
+      "definition": "Everything is a mock: a scripted agent, a mock gateway and a stub token service on loopback. There is no tenant and no real model. How real PingOne products implement revoke and caps is as modelled in the demo environment, UNVERIFIED against product documentation; the app makes no claim about real product defaults, limits or latency.",
+      "aliases": [
+        "mock"
+      ]
+    },
+    {
+      "id": "in-flight",
+      "term": "In-flight call",
+      "definition": "A call already admitted when the stop lands. In this demo it is not interrupted by default: it finishes, is flagged completed-after-stop, and stays charged. Cancelling it is an option of the demo, not a documented product behaviour. The next call is refused."
+    },
+    {
+      "id": "inert-text",
+      "term": "Inert text",
+      "definition": "Any string an agent or operator supplies is redacted and shown as plain text: hidden and control characters are made visible and sizes are bounded, so it cannot act as markup or instructions."
+    },
+    {
+      "id": "kill-switch",
+      "term": "Kill switch",
+      "definition": "An operator control that revokes an agent's access so its next call is refused. Here it can be pulled for one agent or for all of them, and it is checked on every call. How a real product implements it is as modelled in the demo environment, UNVERIFIED against product documentation.",
+      "aliases": [
+        "revoke"
+      ]
+    },
+    {
+      "id": "rate-cap",
+      "term": "Rate cap",
+      "definition": "A limit on how many calls an agent may make in a sliding time window. The call at the limit is allowed; the next one inside the window trips the agent. The window and count here are invented demo numbers, not any product default.",
+      "aliases": [
+        "rate limit"
+      ]
+    },
+    {
+      "id": "revocation-gap",
+      "term": "Revocation gap",
+      "definition": "The time between the revoke and the first refused call. With a check on every call it is as short as the agent's next call. With local token validation and a stale revocation list, calls can still get through until the list refreshes or the token expires. Measured in the stale-token-gap scenario; no real latency is claimed.",
+      "aliases": [
+        "propagation delay"
+      ]
+    },
+    {
+      "id": "revoke",
+      "term": "Revoke",
+      "definition": "Withdraw access that was already granted. In this demo a revoke marks the agent's live tokens as revoked at the stub token service and shuts token issuance for that agent. As modelled in the demo environment, UNVERIFIED against product documentation."
+    },
+    {
+      "id": "short-lived-token",
+      "term": "Short-lived access token",
+      "definition": "A token that expires soon after it is issued. If a gateway only checks a token locally, a short lifetime limits how long a revoked token keeps working. The lifetimes here are invented demo numbers, not a product default.",
+      "aliases": [
+        "TTL",
+        "access token"
+      ]
+    },
+    {
+      "id": "sliding-window",
+      "term": "Sliding window",
+      "definition": "A rate window that moves with time: a call exactly one window old no longer counts. It avoids the burst that a fixed clock-minute window allows at the boundary."
+    },
+    {
+      "id": "trip",
+      "term": "Trip (automatic stop)",
+      "definition": "The automatic stop when a cap is breached. The agent moves from armed to tripped, its tokens are revoked and issuance shuts, with no human involved. Rate trips can auto-reset after a cooldown; cost trips and manual kills do not.",
+      "aliases": [
+        "auto-trip"
+      ]
+    },
+    {
+      "id": "unrevoke",
+      "term": "Unrevoke",
+      "definition": "An operator action that clears a kill so calls pass again. It needs an operator name, is written to the audit trail, and never happens by itself for a manual kill. A cap trip is reset the same way, or by auto-reset for rate trips only.",
+      "aliases": [
+        "reset"
+      ]
+    }
+  ],
+  "sources": [],
+  "cards": [
+    {
+      "id": "blast-radius",
+      "label": "Two agents, one killed",
+      "description": "Run blast-radius: only alpha stops, beta carries on.",
+      "group": "try-it",
+      "terms": [
+        "blast-radius",
+        "agent-state"
+      ],
+      "story": "S02",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    },
+    {
+      "id": "cost-expensive",
+      "label": "An expensive prompt blows the cost cap",
+      "description": "Run cost-expensive and watch the money budget burn down until a call would cross it.",
+      "group": "try-it",
+      "terms": [
+        "cost-cap",
+        "trip"
+      ],
+      "story": "S02",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    },
+    {
+      "id": "flow",
+      "label": "Where each call goes",
+      "description": "Agent, revocation check, rate cap, cost cap and tools as a movable diagram with Simulate, plus the token service and the kill switch.",
+      "group": "concept",
+      "terms": [
+        "kill-switch",
+        "demo-mode",
+        "inert-text"
+      ],
+      "story": "S01",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    },
+    {
+      "id": "gap",
+      "label": "Why short token lifetimes matter",
+      "description": "Run stale-token-gap and read the timeline from the revoke to the first refused call.",
+      "group": "try-it",
+      "terms": [
+        "revocation-gap",
+        "short-lived-token"
+      ],
+      "story": "S03",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    },
+    {
+      "id": "in-flight",
+      "label": "The kill lands on a running call",
+      "description": "Run in-flight and see what happens to a call already admitted when the stop lands.",
+      "group": "try-it",
+      "terms": [
+        "in-flight"
+      ],
+      "story": "S04",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    },
+    {
+      "id": "manual-kill",
+      "label": "Pull the kill switch mid-run",
+      "description": "Run manual-kill, or press Kill yourself, and see the very next call refused.",
+      "group": "try-it",
+      "terms": [
+        "kill-switch",
+        "revoke",
+        "csrf-guard"
+      ],
+      "story": "S04",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    },
+    {
+      "id": "rate-loop",
+      "label": "A loop blows the rate cap",
+      "description": "Run the rate-loop scenario and watch the sixth call in ten seconds trip the agent, then every later call get refused.",
+      "group": "try-it",
+      "terms": [
+        "rate-cap",
+        "sliding-window",
+        "trip",
+        "agent-state"
+      ],
+      "story": "S02",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    },
+    {
+      "id": "unrevoke",
+      "label": "Kill, then unrevoke",
+      "description": "Run kill-unrevoke: the operator unrevokes with a name, an audit entry is written, and the agent gets a fresh token.",
+      "group": "try-it",
+      "terms": [
+        "unrevoke",
+        "auto-reset",
+        "audit-trail"
+      ],
+      "story": "S03",
+      "action": {
+        "type": "route",
+        "href": "/"
+      }
+    }
+  ],
+  "diagrams": [
+    {
+      "id": "flow",
+      "label": "Where each call goes",
+      "href": "/"
+    }
+  ],
+  "stories": [
+    {
+      "id": "S01",
+      "title": "The agent works",
+      "say": "A scripted agent calls tools through the gateway with a short-lived token."
+    },
+    {
+      "id": "S02",
+      "title": "A cap or an operator steps in",
+      "say": "A rate or cost cap trips by itself, or an operator pulls the switch."
+    },
+    {
+      "id": "S03",
+      "title": "Access is revoked",
+      "say": "The token is revoked and the token service stops issuing new ones."
+    },
+    {
+      "id": "S04",
+      "title": "The next call fails",
+      "say": "The very next call is refused. Anything already in flight is a separate question."
+    }
+  ]
+}

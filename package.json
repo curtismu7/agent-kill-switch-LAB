@@ -16,14 +16,16 @@
     "start": "npm start -w server",
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
-    "test": "npm test -w server && npm test -w web && node --test scripts/compose.test.mjs scripts/hooks.test.mjs scripts/docs.test.mjs scripts/doctor.test.mjs",
+    "test": "npm test -w server && npm test -w web && node --test scripts/compose.test.mjs scripts/hooks.test.mjs scripts/docs.test.mjs scripts/doctor.test.mjs scripts/content-pack.test.mjs scripts/shelf-entry.test.mjs",
     "e2e": "node scripts/e2e.mjs",
     "doctor": "node scripts/doctor.mjs",
     "red-checks": "node scripts/red-checks.mjs",
     "red-checks-web": "node scripts/red-checks-web.mjs",
-    "prepare": "git config core.hooksPath .githooks || true"
+    "prepare": "git config core.hooksPath .githooks || true",
+    "content-pack": "node scripts/build-content-pack.mjs && node scripts/validate-content-pack.mjs"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
     "playwright": "^1.64.1"
   }
 }

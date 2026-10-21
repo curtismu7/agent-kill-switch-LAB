@@ -22,4 +22,5 @@ EXPOSE 6550
 # Inside the container the server must listen on all interfaces, so KILL_SWITCH_BIND is set here on purpose.
 # The compose file publishes the port on 127.0.0.1 only; do not publish it more widely.
 ENV KILL_SWITCH_BIND=0.0.0.0
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD node -e "fetch('http://127.0.0.1:6550/api/health').then(r=>r.json()).then(j=>process.exit(j.state==='ready'?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "server/src/index.js"]

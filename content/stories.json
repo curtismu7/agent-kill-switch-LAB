@@ -1,0 +1,6 @@
+[
+  { "id": "S01", "title": "The agent works", "say": "A scripted agent calls tools through the gateway with a short-lived token." },
+  { "id": "S02", "title": "A cap or an operator steps in", "say": "A rate or cost cap trips by itself, or an operator pulls the switch." },
+  { "id": "S03", "title": "Access is revoked", "say": "The token is revoked and the token service stops issuing new ones." },
+  { "id": "S04", "title": "The next call fails", "say": "The very next call is refused. Anything already in flight is a separate question." }
+]
