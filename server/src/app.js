@@ -1,6 +1,9 @@
 // One Express app: the API under /api. createApp() is what the tests use.
 // Every agent- and operator-provided string in a response was made inert and redacted when it was stored, and is served as
 // JSON only. No route accepts a token, a URL or a credential; access tokens never appear in any response.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createHealth } from './health.js';
 import { createRuntime } from './runtime.js';
@@ -8,6 +11,9 @@ import { assertBindAllowed, bindHost, credentialGuard, hostGuard, originGuard, s
 import { describeScenario, getScenario } from './scenarios.js';
 import { MODELS, TOOLS } from './policy.js';
 
+export const DEFAULT_WEB_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
+// The built UI is served from this server, so it is same-origin with the API. It may load script, style, image and fetch from itself only.
+export const UI_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 const bad = (res, message, status = 400) => res.status(status).json({ error: status === 404 ? 'not_found' : 'bad_request', message });
 const API_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'", 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
 const ID_RE = /^[a-z0-9-]{1,40}$/;
@@ -30,13 +36,17 @@ function operatorBody(body, kind) {
   return { value: body };
 }
 
-export function createApp({ runtime, health = createHealth() } = {}) {
+// webDist: directory with the built UI. null (default, so API tests never depend on a build) disables static serving.
+export function createApp({ runtime, health = createHealth(), webDist = null } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use(hostGuard);
   app.use(credentialGuard);
   app.use(originGuard);
   app.use((_req, res, next) => { res.set(API_HEADERS); next(); });
+  if (webDist && fs.existsSync(path.join(webDist, 'index.html'))) {
+    app.use(express.static(webDist, { index: 'index.html', dotfiles: 'ignore', setHeaders: (res) => res.set({ ...API_HEADERS, 'Content-Security-Policy': UI_CSP }) }));
+  }
 
   const api = express.Router();
   api.use('/health', health.router);
@@ -111,12 +121,12 @@ export function createApp({ runtime, health = createHealth() } = {}) {
 
 
 // Boot on `port`. Refuses a non-loopback host unless KILL_SWITCH_BIND is set.
-export async function startHttpServer({ port = serverPort(), host = bindHost(), env = process.env, runtime } = {}) {
+export async function startHttpServer({ port = serverPort(), host = bindHost(), env = process.env, runtime, webDist = DEFAULT_WEB_DIST } = {}) {
   assertBindAllowed(host, env);
   const rt = runtime || createRuntime();
   const health = createHealth({ env });
   return new Promise((resolve, reject) => {
-    const httpServer = createApp({ runtime: rt, health }).listen(port, host);
+    const httpServer = createApp({ runtime: rt, health, webDist }).listen(port, host);
     httpServer.once('error', (e) => { health.stop(); reject(e); });
     httpServer.once('listening', () => {
       const { port: bound } = httpServer.address();

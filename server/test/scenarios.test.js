@@ -120,3 +120,19 @@ test('the transcript is bounded', () => {
   const run = r.runScenario('rate-loop');
   assert.ok(run.transcript.length <= 300);
 });
+
+test('the live clock is scenario time: real time does not flow into a run, so scripted numbers are exact every time', async () => {
+  const { createClock } = await import('../src/clock.js');
+  const clock = createClock();
+  const t0 = clock.now();
+  await new Promise((r) => { setTimeout(r, 25); }); // the one real wait in the suite: it proves the clock ignores it
+  assert.equal(clock.now(), t0);
+  assert.equal(clock.fake, false);
+  clock.advance(500);
+  assert.equal(clock.now(), t0 + 500);
+  assert.throws(() => clock.set(1), /only a fake clock/);
+  for (let i = 0; i < 5; i += 1) {
+    const rt = createRuntime({ clock: createClock() });
+    assert.equal(rt.runScenario('stale-token-gap').expectation.ok, true);
+  }
+});
