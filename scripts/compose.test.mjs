@@ -33,6 +33,11 @@ test('docker-compose.yml publishes only on 127.0.0.1, in 6550-6599', () => {
   }
 });
 
+test('the published host port is a literal: no ${VAR} override can move it outside 6550-6599', () => {
+  for (const p of publishedPorts(compose)) assert.doesNotMatch(p, /[$&{}]/, `${p} must not be parameterised`);
+  assert.doesNotMatch(code, /HOST_PORT/);
+});
+
 test('the parser flags an unbound or wildcard publish', () => {
   for (const bad of ['- "6550:6550"', '- "0.0.0.0:6550:6550"', '- 6550', '- "[::]:6550:6550"']) {
     const ports = publishedPorts(`services:\n  a:\n    ports:\n      ${bad}\n`);

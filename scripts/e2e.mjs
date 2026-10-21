@@ -13,6 +13,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
+// Waits are generous because the machine is shared; override with KS_E2E_WAIT_MS if a loaded machine still times out.
+const WAIT_MS = Number(process.env.KS_E2E_WAIT_MS) > 0 ? Number(process.env.KS_E2E_WAIT_MS) : 60000;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.env.E2E_SHOTS || path.join(root, '.data', 'e2e-screenshots');
 const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
@@ -44,7 +46,7 @@ try {
   const active = () => page.evaluate(() => `${document.activeElement?.tagName}|${document.activeElement?.getAttribute('aria-label') || document.activeElement?.textContent?.trim().slice(0, 40)}`);
   const statusText = () => page.getByTestId('run-status').innerText();
   const progress = () => page.getByTestId('progress').innerText();
-  const waitStatus = (re) => page.waitForFunction((s) => new RegExp(s).test(document.querySelector('[data-testid="run-status"]').textContent), re.source, { timeout: 20000 });
+  const waitStatus = (re) => page.waitForFunction((s) => new RegExp(s).test(document.querySelector('[data-testid="run-status"]').textContent), re.source, { timeout: WAIT_MS });
   const pill = (agent) => page.locator(`[data-testid="switch-${agent}"] .pill`).innerText();
   const pick = (id) => page.selectOption('[data-testid="scenario-select"]', id);
   const reset = async () => { await page.getByRole('button', { name: 'Reset', exact: true }).click(); await waitStatus(/Everything reset/); };
@@ -128,7 +130,7 @@ try {
   await page.getByRole('button', { name: 'Simulate' }).click();
   await page.waitForFunction(() => /step [3-5] of 6/.test(document.querySelector('[data-testid="progress"]')?.textContent || ''));
   await page.getByRole('button', { name: 'Kill agent-alpha' }).click();
-  await page.waitForFunction(() => /finished/.test(document.querySelector('[data-testid="progress"]')?.textContent || ''), null, { timeout: 20000 });
+  await page.waitForFunction(() => /finished/.test(document.querySelector('[data-testid="progress"]')?.textContent || ''), null, { timeout: WAIT_MS });
   check(/Killed/.test(await pill('agent-alpha')), 'kill pulled during Simulate: alpha Killed');
   check((await page.locator('[data-testid="feed"] li.call_denied').count()) >= 1, 'the calls after the kill are refused in the live feed');
   check(/you intervened/.test(await page.getByTestId('expect-summary').innerText()), 'the end-state check says the operator intervened');

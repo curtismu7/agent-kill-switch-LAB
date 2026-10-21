@@ -24,6 +24,7 @@ const free = (port) => new Promise((resolve) => {
 });
 const port = serverPort();
 const err = await free(port);
-report(err ? 'fail' : 'pass', 'port', err ? `${port} is not free (${err}). Set KILL_SWITCH_PORT in .env to a free port in ${PORT_MIN}-${PORT_MAX}` : `${port} is free`);
+// A busy port is a WARNING, not a failure: the configuration is fine, something (often a running instance) holds the port.
+report(err ? 'warn' : 'pass', 'port', err ? `${port} is in use (${err}); if that is not a running instance of this demo, set KILL_SWITCH_PORT in .env to a free port in ${PORT_MIN}-${PORT_MAX}` : `${port} is free`);
 
 process.exit(failed ? 1 : 0);

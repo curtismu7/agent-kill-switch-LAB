@@ -14,6 +14,7 @@ import { MODELS, TOOLS } from './policy.js';
 export const DEFAULT_WEB_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 // The built UI is served from this server, so it is same-origin with the API. It may load script, style, image and fetch from itself only.
 export const UI_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+const KILL_IN_FORCE = 'an operator kill is in force: unrevoke it (an audited action) or reset the demo before starting a scenario, which would otherwise clear it silently';
 const bad = (res, message, status = 400) => res.status(status).json({ error: status === 404 ? 'not_found' : 'bad_request', message });
 const API_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'", 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
 const ID_RE = /^[a-z0-9-]{1,40}$/;
@@ -56,12 +57,15 @@ export function createApp({ runtime, health = createHealth(), webDist = null } =
   api.post('/scenarios/:id/run', (req, res) => {
     if (!ID_RE.test(req.params.id) || !getScenario(req.params.id)) return bad(res, 'no such scenario', 404);
     if (req.body && Object.keys(req.body).length) return bad(res, 'running a scenario takes no parameters');
-    res.json({ mode: runtime.mode, run: runtime.runScenario(req.params.id), state: runtime.snapshot() });
+    const run = runtime.runScenario(req.params.id);
+    if (run.error) return res.status(409).json({ error: run.error, killed: run.killed, message: KILL_IN_FORCE });
+    res.json({ mode: runtime.mode, run, state: runtime.snapshot() });
   });
   api.post('/scenarios/:id/step', (req, res) => {
     if (!ID_RE.test(req.params.id) || !getScenario(req.params.id)) return bad(res, 'no such scenario', 404);
     if (req.body && Object.keys(req.body).length) return bad(res, 'stepping a scenario takes no parameters');
     const r = runtime.stepScenario(req.params.id);
+    if (r.error === 'kill_in_force') return res.status(409).json({ error: r.error, killed: r.killed, message: KILL_IN_FORCE });
     if (r.error) return res.status(409).json({ error: r.error, message: 'this run has finished: POST /run to run it again, or POST /api/reset' });
     res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
   });

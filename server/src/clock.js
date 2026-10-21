@@ -5,6 +5,9 @@
 //                              ONLY when advance() is called. Real time never leaks into a run, so a rate window or a
 //                              token lifetime cannot expire because a person stepped slowly, and a scripted run gives the
 //                              same numbers every time (a 500 ms gap is 500 ms, not 501).
+// Real wall-clock time. Used ONLY to stamp the audit trail (when it was written); never by a cap, TTL or cooldown.
+export const wallNow = () => Date.now();
+
 export function createClock({ fixed = null } = {}) {
   let t = fixed !== null ? fixed : Date.now();
   const fake = fixed !== null;

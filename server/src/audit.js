@@ -4,7 +4,9 @@
 //    entry's hash. The key is random per process and never leaves it, so editing an entry and recomputing the chain
 //    with a plain hash does not verify.
 //  - Capped: when the cap is reached the oldest entry is dropped and the chain is re-anchored (anchor = the dropped
-//    entry's seq and hash), so a verify still checks every entry that remains.
+//    entry's seq and hash), so a verify still checks every entry that remains. verify() reports `evicted`, the count dropped
+//    that way: ok:true means the REMAINING entries are intact, not that nothing was ever dropped.
+//  - `at` is wall-clock time (when it was written); `scenarioAt` is the demo's virtual-clock time at that moment.
 //  - `store` is the backing array. It is injectable so a test can tamper with it. Nothing else touches it.
 import crypto from 'node:crypto';
 
@@ -17,19 +19,20 @@ const canonical = (v) => {
   return JSON.stringify(v) ?? 'null';
 };
 
-export function createAudit({ store = [], key = crypto.randomBytes(32), now = () => new Date(), cap = AUDIT_CAP } = {}) {
+export function createAudit({ store = [], key = crypto.randomBytes(32), now = () => new Date(), scenarioNow = () => null, cap = AUDIT_CAP } = {}) {
   let seq = store.length ? store[store.length - 1].seq + 1 : 1;
   let anchor = { seq: 0, hash: GENESIS };
   let epoch = 1;
-  const mac = (e) => crypto.createHmac('sha256', key).update(canonical({ seq: e.seq, at: e.at, type: e.type, agentId: e.agentId, data: e.data, prevHash: e.prevHash })).digest('hex');
+  let evicted = 0; // entries pushed out by the cap since start: verify() reports it, so a flood that drops history is visible
+  const mac = (e) => crypto.createHmac('sha256', key).update(canonical({ seq: e.seq, at: e.at, scenarioAt: e.scenarioAt, type: e.type, agentId: e.agentId, data: e.data, prevHash: e.prevHash })).digest('hex');
 
   function append(type, agentId, data = {}) {
     const prevHash = store.length ? store[store.length - 1].hash : anchor.hash;
-    const entry = { seq, at: now().toISOString(), type, agentId: agentId ?? null, data: structuredClone(data), prevHash };
+    const entry = { seq, at: now().toISOString(), scenarioAt: scenarioNow(), type, agentId: agentId ?? null, data: structuredClone(data), prevHash };
     entry.hash = mac(entry);
     seq += 1;
     store.push(Object.freeze(entry));
-    while (store.length > cap) { const dropped = store.shift(); anchor = { seq: dropped.seq, hash: dropped.hash }; }
+    while (store.length > cap) { const dropped = store.shift(); anchor = { seq: dropped.seq, hash: dropped.hash }; evicted += 1; }
     return structuredClone(entry);
   }
 
@@ -47,7 +50,7 @@ export function createAudit({ store = [], key = crypto.randomBytes(32), now = ()
       prev = e.hash;
       expectSeq += 1;
     }
-    return { ok: true, length: store.length, headSeq: store.length ? store[store.length - 1].seq : anchor.seq, headHash: prev, epoch, reason: null };
+    return { ok: true, length: store.length, headSeq: store.length ? store[store.length - 1].seq : anchor.seq, headHash: prev, epoch, evicted, reason: null };
   }
 
   // After the whole trail is discarded by an operator reset: a new epoch starts with a marker that carries the

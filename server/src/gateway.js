@@ -96,7 +96,7 @@ export function createGateway({ clock, tokens, audit, events, limits = {}, confi
     const from = { state: a.state, reason: a.reason };
     a.state = 'reset'; a.reason = null; a.stoppedAt = null; a.autoResetAt = null; a.resetAt = clock.now(); a.window = [];
     if (resetBudget) { a.usage.tokens = 0; a.usage.tokensIn = 0; a.usage.tokensOut = 0; a.usage.micros = 0; }
-    tokens.enable(a.id);
+    if (global.state !== 'killed') tokens.enable(a.id); // while the global switch holds, the identity layer stays shut (also on auto-reset)
     return from;
   }
 
@@ -159,8 +159,8 @@ export function createGateway({ clock, tokens, audit, events, limits = {}, confi
     rec.tokenId = token.id;
 
     // request shape
-    if (!Object.hasOwn(TOOLS, input.tool)) return deny('request', 'unknown_tool');
-    if (!Object.hasOwn(MODELS, model)) return deny('request', 'unknown_model');
+    if (typeof input.tool !== 'string' || !Object.hasOwn(TOOLS, input.tool)) return deny('request', 'unknown_tool');
+    if (typeof model !== 'string' || !Object.hasOwn(MODELS, model)) return deny('request', 'unknown_model');
     if (!isCount(input.tokensIn) || !isCount(input.tokensOut)) return deny('request', 'bad_request');
     const cost = costMicros(model, input.tokensIn, input.tokensOut);
     const tokenCount = input.tokensIn + input.tokensOut;
@@ -240,7 +240,6 @@ export function createGateway({ clock, tokens, audit, events, limits = {}, confi
     refresh(a);
     if (a.state !== 'tripped' && a.state !== 'killed') return { ok: false, status: 409, error: 'not_revoked' };
     const from = clearAgent(a, { resetBudget });
-    if (global.state === 'killed') tokens.disable(a.id); // the global switch still holds the identity layer shut
     const data = { operator: who(operator), note: note(reason), from: from.state, cause: from.reason, budgetReset: resetBudget === true };
     events.emit('unrevoke', a.id, data);
     audit.append('unrevoke', a.id, data);

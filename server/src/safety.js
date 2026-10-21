@@ -48,8 +48,15 @@ export function hostGuard(req, res, next) {
 //  - a request with a body must be application/json.
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 export function originGuard(req, res, next) {
-  if (READ_METHODS.has(req.method)) return next();
   const refuse = (status, error, message) => res.status(status).json({ error, message });
+  if (READ_METHODS.has(req.method)) {
+    // A read through /api can still move the demo (a due auto-reset is applied lazily when state is looked at), so a page from another
+    // site or another local port may not trigger one: only same-origin, address-bar (none) and header-less (curl, server-side) reads pass.
+    // /api/health is exempt (shelf and probes). A browser too old to send Sec-Fetch-Site is not covered by this.
+    const site = String(req.headers['sec-fetch-site'] || '').toLowerCase();
+    if (site && site !== 'same-origin' && site !== 'none' && req.path.startsWith('/api/') && !req.path.startsWith('/api/health')) return refuse(403, 'cross_site_refused', 'cross-site reads of the API are refused');
+    return next();
+  }
   if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') return refuse(403, 'cross_site_refused', 'cross-site requests are refused');
   const origin = req.headers.origin;
   if (origin !== undefined) {

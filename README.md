@@ -16,7 +16,7 @@ The kill-switch behaviour (revoke blocks the next call, in-flight calls finish, 
 
 ```bash
 npm install
-npm run doctor      # node, bind, port range, scenario tables, and whether port 6550 is free
+npm run doctor      # node, bind, port range, scenario tables, and whether port 6550 is free (a busy port is a warning, not a failure)
 npm test            # server suite (node:test, fake clock) + web suite (vitest) + compose/hook/docs checks
 npm run build       # build the web UI into web/dist; the server serves it
 npm start           # http://127.0.0.1:6550/  (KILL_SWITCH_PORT to change; ports 6550-6599 only)
@@ -45,7 +45,7 @@ curl -s -X POST http://127.0.0.1:6550/api/scenarios/rate-loop/step -H 'content-t
 curl -s 'http://127.0.0.1:6550/api/events?since=0'
 ```
 
-Docker (OrbStack, never Docker Desktop): `HOST_PORT=6550 docker compose up --build -d`. The port is published on `127.0.0.1` only, which `scripts/compose.test.mjs` pins.
+Docker (OrbStack, never Docker Desktop): `docker compose up --build -d` (the host port is fixed at 6550, with no override variable, so it cannot be pointed outside 6550-6599). The port is published on `127.0.0.1` only, which `scripts/compose.test.mjs` pins.
 
 ## The web UI
 

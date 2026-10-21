@@ -2,7 +2,7 @@
 // own copies of their tokens). Scenarios run here, step by step or all at once, on the virtual clock.
 // Audit and events survive a scenario start; only reset() clears them (and the audit says so).
 import { createAudit } from './audit.js';
-import { createClock } from './clock.js';
+import { createClock, wallNow as realNow } from './clock.js';
 import { createEvents } from './events.js';
 import { createGateway } from './gateway.js';
 import { AGENTS, DEFAULT_GATEWAY, MODELS, TOOLS, deriveAgentKey } from './policy.js';
@@ -13,9 +13,9 @@ export const TRANSCRIPT_CAP = 300;
 const OPERATOR = 'demo-script';
 const TOKEN_REASONS = new Set(['token_expired', 'token_revoked', 'token_unknown', 'token_missing']);
 
-export function createRuntime({ clock = createClock(), auditStore, auditCap } = {}) {
+export function createRuntime({ clock = createClock(), wallNow = realNow, auditStore, auditCap } = {}) {
   const events = createEvents({ clock });
-  const audit = createAudit({ store: auditStore, now: () => new Date(clock.now()), cap: auditCap });
+  const audit = createAudit({ store: auditStore, now: () => new Date(wallNow()), scenarioNow: () => clock.iso(), cap: auditCap });
   let world = null;
   let run = null;
 
@@ -56,8 +56,19 @@ export function createRuntime({ clock = createClock(), auditStore, auditCap } = 
   }
 
   // ---- operator actions, shared by scenarios and the HTTP endpoints -----------------------------------------------------
-  function kill(body) { return body.scope === 'global' ? world.gateway.killGlobal(body) : world.gateway.kill(body); }
-  function unrevoke(body) { return body.scope === 'global' ? world.gateway.unrevokeGlobal(body) : world.gateway.unrevoke(body); }
+  const doKill = (body) => (body.scope === 'global' ? world.gateway.killGlobal(body) : world.gateway.kill(body));
+  const doUnrevoke = (body) => (body.scope === 'global' ? world.gateway.unrevokeGlobal(body) : world.gateway.unrevoke(body));
+  // A kill by an operator (the HTTP endpoints) is in force until an operator unrevokes it or resets the demo. Starting a scenario
+  // builds a fresh world, which would silently clear it with no audit entry, so a scenario will not start while one is in force.
+  // (A kill that a scenario script performs itself is part of that scenario and does not block the next one.)
+  const manualKills = new Set();
+  const killKey = (body) => (body.scope === 'global' ? 'global' : world.gateway.agent(body.agentId)?.id);
+  function kill(body) { const r = doKill(body); if (r.ok) manualKills.add(killKey(body)); return r; }
+  function unrevoke(body) { const r = doUnrevoke(body); if (r.ok) manualKills.delete(killKey(body)); return r; }
+  const killInForce = () => {
+    const live = [...manualKills].filter((k) => (k === 'global' ? world.gateway.global().state === 'killed' : world.gateway.agent(k)?.state === 'killed'));
+    return live.length ? { error: 'kill_in_force', killed: live } : null;
+  };
 
   // ---- scenario runner ---------------------------------------------------------------------------------------------------
   function startRun(scenario) {
@@ -77,10 +88,10 @@ export function createRuntime({ clock = createClock(), auditStore, auditCap } = 
       if (r.allowed) c.allowed += 1; else c.denied += 1;
       Object.assign(entry, { tool: action.tool, allowed: r.allowed, stage: r.stage, reason: r.reason ?? null, costMicros: r.costMicros ?? 0, retriedAfter: r.retriedAfter ?? null });
     } else if (action.t === 'kill') {
-      const r = kill({ scope: action.scope ?? 'agent', agentId: action.agent, operator: OPERATOR, reason: 'scripted', inFlight: action.inFlight });
+      const r = doKill({ scope: action.scope ?? 'agent', agentId: action.agent, operator: OPERATOR, reason: 'scripted', inFlight: action.inFlight });
       Object.assign(entry, { ok: r.ok, error: r.error ?? null });
     } else if (action.t === 'unrevoke') {
-      const r = unrevoke({ scope: action.scope ?? 'agent', agentId: action.agent, operator: OPERATOR, reason: 'scripted', resetBudget: action.resetBudget === true });
+      const r = doUnrevoke({ scope: action.scope ?? 'agent', agentId: action.agent, operator: OPERATOR, reason: 'scripted', resetBudget: action.resetBudget === true });
       Object.assign(entry, { ok: r.ok, error: r.error ?? null });
     } else Object.assign(entry, { waitedMs: action.after });
     return entry;
@@ -128,6 +139,8 @@ export function createRuntime({ clock = createClock(), auditStore, auditCap } = 
     runScenario(id) {
       const s = getScenario(id);
       if (!s) return null;
+      const blocked = killInForce();
+      if (blocked) return blocked;
       startRun(s);
       while (!run.done) stepRun(s);
       return runInfo();
@@ -137,7 +150,11 @@ export function createRuntime({ clock = createClock(), auditStore, auditCap } = 
       const s = getScenario(id);
       if (!s) return null;
       if (run && run.scenario === id && run.done) return { error: 'run_finished' };
-      if (!run || run.scenario !== id || run.done) startRun(s);
+      if (!run || run.scenario !== id || run.done) {
+        const blocked = killInForce();
+        if (blocked) return blocked;
+        startRun(s);
+      }
       const entry = stepRun(s);
       return { entry, run: runInfo() };
     },
@@ -145,6 +162,7 @@ export function createRuntime({ clock = createClock(), auditStore, auditCap } = 
     // Everything back to the start. The audit trail is not erased silently: it opens a new epoch whose first entry records the head of the old one.
     reset() {
       world = buildWorld();
+      manualKills.clear();
       run = null;
       audit.reset();
       events.emit('reset', null, {});

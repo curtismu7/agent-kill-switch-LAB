@@ -1,13 +1,13 @@
-# OrbStack:  HOST_PORT=6550 docker compose up --build -d   ->  http://127.0.0.1:6550/api/health
+# OrbStack:  docker compose up --build -d   ->  http://127.0.0.1:6550/api/health
 # The server binds 0.0.0.0 INSIDE the container (KILL_SWITCH_BIND is the opt-in), but the port is published on loopback only.
-# No host mounts, no docker socket, no host network. Do not change the 127.0.0.1 below.
+# No host mounts, no docker socket, no host network. Do not change the 127.0.0.1 below. The host port is fixed (no variable): an override could publish outside 6550-6599.
 name: agent-kill-switch
 
 services:
   agent-kill-switch:
     build: .
     ports:
-      - "127.0.0.1:${HOST_PORT:-6550}:6550"
+      - "127.0.0.1:6550:6550"
     environment:
       KILL_SWITCH_PORT: "6550"
       KILL_SWITCH_BIND: 0.0.0.0
