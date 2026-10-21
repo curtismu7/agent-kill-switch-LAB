@@ -1,0 +1,21 @@
+# OrbStack:  HOST_PORT=6550 docker compose up --build -d   ->  http://127.0.0.1:6550/api/health
+# The server binds 0.0.0.0 INSIDE the container (KILL_SWITCH_BIND is the opt-in), but the port is published on loopback only.
+# No host mounts, no docker socket, no host network. Do not change the 127.0.0.1 below.
+name: agent-kill-switch
+
+services:
+  agent-kill-switch:
+    build: .
+    ports:
+      - "127.0.0.1:${HOST_PORT:-6550}:6550"
+    environment:
+      KILL_SWITCH_PORT: "6550"
+      KILL_SWITCH_BIND: 0.0.0.0
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:6550/api/health').then(r=>r.json()).then(j=>process.exit(j.state==='ready'?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -1,0 +1,82 @@
+# Agent Kill Switch
+
+A demo of how an organization stops a runaway AI agent: per-agent **rate caps** and **cost caps** that trip automatically, an operator **kill switch** that revokes the agent's access, and the very next call failing. It shows the access token being revoked, the token service refusing to issue a new one, what happens to a call that was already in flight, and how little the other agent notices.
+
+Everything is a mock. A scripted agent calls mock tools through a mock gateway, with a stub token service. There is no tenant, no real model and no network beyond `127.0.0.1`.
+
+## Status
+
+Step KS0 (server core) is built and tested. **There is no web UI yet** (planned: React Flow diagram with Simulate, Reset and speed controls; content pack; shelf entry). The workspace list therefore contains only `server`. Not built: CI and a runner.
+
+## Provenance, in one paragraph
+
+The kill-switch behaviour (revoke blocks the next call, in-flight calls finish, the kill is checked on every call, kill and gate use the same agent key, unrevoke, auto-reset, live steps) is reproduced from the AI-DEMO2 demo environment. **How real PingOne products implement revoke and caps is as modelled in the demo environment, UNVERIFIED against product documentation. This app makes no claim about real product defaults, limits or latency.** All numbers (windows, budgets, prices, TTLs, cooldowns) are invented. See [docs/safety.md](docs/safety.md) for the sourced-versus-invented table and the exact in-flight semantics.
+
+## Run it
+
+```bash
+npm install
+npm run doctor      # node, bind, port range, scenario tables, and whether port 6550 is free
+npm test            # server suite (node:test, fake clock, no sleeps) + compose/hook/docs checks
+npm start           # http://127.0.0.1:6550/  (KILL_SWITCH_PORT to change; ports 6550-6599 only)
+npm run red-checks  # slow: mutate each safety check in a copy and require the suite to fail
+```
+
+```bash
+curl -s http://127.0.0.1:6550/api/health
+curl -s http://127.0.0.1:6550/api/scenarios
+curl -s -X POST http://127.0.0.1:6550/api/scenarios/manual-kill/run -H 'content-type: application/json' -d '{}'
+curl -s http://127.0.0.1:6550/api/state
+curl -s -X POST http://127.0.0.1:6550/api/unrevoke -H 'content-type: application/json' \
+  -d '{"scope":"agent","agentId":"agent-alpha","operator":"you","reason":"checked the logs"}'
+curl -s http://127.0.0.1:6550/api/audit/verify
+```
+
+Step through a run one action at a time (`POST /api/scenarios/:id/step`), and pull the kill yourself part-way:
+
+```bash
+curl -s -X POST http://127.0.0.1:6550/api/scenarios/rate-loop/step -H 'content-type: application/json' -d '{}'
+curl -s -X POST http://127.0.0.1:6550/api/kill -H 'content-type: application/json' -d '{"scope":"agent","agentId":"agent-alpha","operator":"you"}'
+curl -s -X POST http://127.0.0.1:6550/api/scenarios/rate-loop/step -H 'content-type: application/json' -d '{}'   # entry.reason is agent_killed
+curl -s 'http://127.0.0.1:6550/api/events?since=0'
+```
+
+Docker (OrbStack, never Docker Desktop): `HOST_PORT=6550 docker compose up --build -d`. The port is published on `127.0.0.1` only, which `scripts/compose.test.mjs` pins.
+
+## The scenarios
+
+| id | what happens | ends in |
+| --- | --- | --- |
+| `normal` | six calls well under every cap | alpha armed |
+| `rate-loop` | a loop blows the rate cap (6th call in 10 s); the runaway keeps calling | alpha tripped (rate_cap), 5 allowed, 5 refused |
+| `cost-expensive` | a huge large-model prompt takes the money budget over its limit | alpha tripped (cost_cap) |
+| `manual-kill` | an operator kills alpha after three calls | alpha killed; gap 500 ms (to its next call) |
+| `kill-unrevoke` | kill, two refused calls, operator unrevokes, fresh token, carries on | alpha armed |
+| `in-flight` | the kill lands on a running 3 s export: it completes, the next call is refused | alpha killed, 1 completed after the stop |
+| `blast-radius` | two agents; alpha killed, beta unaffected | alpha killed, beta armed with 6 of 6 allowed |
+| `stale-token-gap` | kill revokes the token, but the gateway validates locally with a stale revocation list | 3 calls leak, first refusal 20 s after the kill |
+| `auto-reset` | rate trip, 30 s cooldown, audited auto-reset | alpha armed again |
+
+Each scenario declares its expected end state; the run response carries `run.expectation` with every check, and the tests assert them.
+
+## API
+
+`GET /api/health` (`demo-health/1`), `/api/scenarios`, `/api/agents`, `/api/state`, `/api/events?since=&limit=`, `/api/audit?after=&limit=`, `/api/audit/verify`;
+`POST /api/scenarios/:id/run`, `/api/scenarios/:id/step`, `/api/kill`, `/api/unrevoke`, `/api/reset`.
+
+* `POST /api/kill` `{scope: "agent"|"global", agentId?, operator?, reason?, inFlight?: "finish"|"cancel"}`
+* `POST /api/unrevoke` `{scope, agentId?, operator (required), reason?, resetBudget?}`
+
+JSON bodies only (2 KB), same-origin only (cross-origin `Origin` / `Sec-Fetch-Site: cross-site` get 403), loopback `Host` only (421), no credential headers (400). Architecture: [docs/architecture.md](docs/architecture.md). Safety rules and the test behind each: [docs/safety.md](docs/safety.md).
+
+## Verification
+
+Run on the working tree (see CHANGELOG for the step): `npm test`, `npm run doctor`, a clean-clone `npm install && npm test`, `npm run red-checks`, gitleaks, and a scan of the git history. The red-check list is in `scripts/red-checks.mjs`.
+
+## Ports
+
+Server 6550. 6551-6559 are reserved for stub listeners (none are opened in KS0, the tools are in-process). Vite dev will use 6560, the e2e run 6570, tests 6580-6599.
+
+## License
+
+MIT
