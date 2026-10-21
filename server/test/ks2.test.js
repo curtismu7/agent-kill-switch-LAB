@@ -17,7 +17,7 @@ const OPS = { operator: 'ops', reason: 'test' };
 const rt = (o = {}) => createRuntime({ clock: createClock({ fixed: T0 }), ...o });
 async function boot(t) {
   const runtime = rt();
-  const srv = await startHttpServer({ port: await freePort('spare'), runtime });
+  const srv = await startHttpServer({ port: await freePort('ks2'), runtime });
   t.after(() => srv.close());
   return { srv, runtime, call: (m, p, o) => request(srv.port, m, p, o) };
 }

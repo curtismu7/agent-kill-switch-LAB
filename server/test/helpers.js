@@ -28,8 +28,8 @@ export function makeWorld({ limits = {}, config = {} } = {}) {
   return { clock, tokens, audit, events, gateway, go, held };
 }
 
-export const BASES = { api: 6580, guards: 6585, safety: 6590, spare: 6595 };
-const SLICE_END = { api: 6584, guards: 6589, safety: 6594, spare: 6599 };
+export const BASES = { api: 6580, guards: 6585, safety: 6590, spare: 6595, ks2: 6598 };
+const SLICE_END = { api: 6584, guards: 6589, safety: 6594, spare: 6597, ks2: 6599 };
 
 const isFree = (port) => new Promise((resolve) => {
   const s = net.createServer();
