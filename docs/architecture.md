@@ -18,7 +18,7 @@ Everything runs in one Node process. There is no tenant, no model, no network be
 
 | File | Role |
 | --- | --- |
-| `clock.js` | The only source of time. A fake clock (tests) moves only when told; the live clock is real time plus a virtual offset so a scenario can "wait 30 seconds" instantly. No module uses a timer or `Date.now()` except this one (and the health refresh). |
+| `clock.js` | The only source of time. A fake clock (tests) moves only when told; the live clock is scenario time: it starts at the wall-clock time and then moves only when a scenario advances it, so a scripted run gives the same numbers every time and a slow human cannot expire a window or token by stepping slowly. No module uses a timer or `Date.now()` except this one (and the health refresh). |
 | `policy.js` | Frozen tables: the two agents, three mock tools, an illustrative price table, default limits, gateway settings, `costMicros()` and `deriveAgentKey()`. |
 | `tokens.js` | Stub token service: opaque short-lived tokens, a revocation list, per-agent issuance switch, bounded store. |
 | `gateway.js` | The gateway and the kill-switch state machine (below). |
@@ -57,7 +57,7 @@ The state output reports `stop.leakedCalls` (calls admitted after the stop) and 
 
 ## Time
 
-A scenario action carries `after` (virtual ms). `runtime.execute` advances the clock, settles in-flight calls whose end time has passed, then acts. In tests the clock is fake, so the whole suite has no sleeps; in the running app the virtual offset makes cooldowns and TTLs elapse instantly during a scenario while real time keeps flowing.
+A scenario action carries `after` (virtual ms). `runtime.execute` advances the clock, settles in-flight calls whose end time has passed, then acts. In tests the clock is fake, so the suite has no sleeps. In the running app the clock is scenario time: it starts at the wall-clock time and moves only when a scenario advances it, so cooldowns and TTLs elapse instantly during a scenario and real time never leaks into a run.
 
 ## API
 
@@ -65,6 +65,10 @@ A scenario action carries `after` (virtual ms). `runtime.execute` advances the c
 `POST /api/scenarios/:id/run`, `/api/scenarios/:id/step`, `/api/kill`, `/api/unrevoke`, `/api/reset`.
 There is deliberately no endpoint that makes a call, issues a token or edits a limit. Events use cursor polling rather than SSE: simpler to bound and to test, and it needs no long-lived connections.
 
-## Not built in KS0
+## Web UI (`web/`)
 
-The web UI (React Flow diagram, Simulate/Reset/speed controls), the content pack and the shelf entry. The server is written so those only read the API above.
+React + Vite, one `App` that polls `/api/state`, `/api/events?since=` and `/api/audit` every 1.5 s and refreshes after each action. `lib/derive.js` turns the event stream into the token list (a trip or kill revokes that agent's still-live tokens; a global kill revokes all; a new run or a reset starts a new world), the gap records (stop, calls admitted after it, first refusal), the diagram highlight for the last step, and the `aria-live` announcements. `Flow.jsx` draws the checks in the order the gateway runs them (revocation, rate, cost). The built files in `web/dist` are served by `app.js` (`webDist`, `UI_CSP`); API routes keep `default-src 'none'`.
+
+## Not built
+
+The content pack, the shelf entry, CI and a runner.

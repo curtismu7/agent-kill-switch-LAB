@@ -6,7 +6,7 @@ Everything is a mock. A scripted agent calls mock tools through a mock gateway, 
 
 ## Status
 
-Step KS0 (server core) is built and tested. **There is no web UI yet** (planned: React Flow diagram with Simulate, Reset and speed controls; content pack; shelf entry). The workspace list therefore contains only `server`. Not built: CI and a runner.
+Steps KS0 (server core) and KS1 (web UI, served by the server itself) are built and tested. Not built: content pack, shelf entry, CI and a runner.
 
 ## Provenance, in one paragraph
 
@@ -17,9 +17,13 @@ The kill-switch behaviour (revoke blocks the next call, in-flight calls finish, 
 ```bash
 npm install
 npm run doctor      # node, bind, port range, scenario tables, and whether port 6550 is free
-npm test            # server suite (node:test, fake clock, no sleeps) + compose/hook/docs checks
+npm test            # server suite (node:test, fake clock) + web suite (vitest) + compose/hook/docs checks
+npm run build       # build the web UI into web/dist; the server serves it
 npm start           # http://127.0.0.1:6550/  (KILL_SWITCH_PORT to change; ports 6550-6599 only)
-npm run red-checks  # slow: mutate each safety check in a copy and require the suite to fail
+npm run dev         # Vite on http://127.0.0.1:6560/, proxying /api to the server on 6550
+npm run e2e         # headless Chromium drives the real server on 6570 (needs npm run build first)
+npm run red-checks  # slow: mutate each server safety check in a copy and require the suite to fail
+npm run red-checks-web  # the same for the UI behaviours
 ```
 
 ```bash
@@ -42,6 +46,21 @@ curl -s 'http://127.0.0.1:6550/api/events?since=0'
 ```
 
 Docker (OrbStack, never Docker Desktop): `HOST_PORT=6550 docker compose up --build -d`. The port is published on `127.0.0.1` only, which `scripts/compose.test.mjs` pins.
+
+## The web UI
+
+Open `http://127.0.0.1:6550/` after `npm run build && npm start`. Story first: a four-step strip (the agent works, a cap or an operator steps in, access is revoked, the next call fails) that follows the real state, then:
+
+* **Run it**: scenario picker, **Run** (whole script), **Step** (one action), **Simulate** (real steps at 0.5x to 4x, with Pause) and **Reset**. You can pull the kill switch part-way through a Simulate; the end-state check then says you intervened.
+* **Where each call goes**: React Flow diagram (agent, revocation check, rate cap, cost cap, tools, with the token service, the kill switch and the audit trail). Boxes are movable (arrow keys too). The highlight is the last real step, and a refused call shows the box it stopped at.
+* **Caps**: the rate window as cells up to the cap, and the money and token budgets burning down with the cap line at the empty end.
+* **Kill switch**: armed / tripped (auto) / killed (manual) / reset per agent, a big **Kill** button, **Unrevoke** behind a confirm step that needs an operator name, a global switch, and the choice of what happens to work already in flight.
+* **Live activity**, **Access tokens** (TTL countdown, revoked marks), **The gap** (a timeline from the revoke to the first refused call, with the short-lifetime lesson), **Blast radius** (two agents, one killed) and the **Audit trail** with a Verify button.
+* DEMO badge on every page, `MODEL, UNVERIFIED` badges wherever product behaviour is described, dark and light themes (no purple), `aria-live` announcements of trips and kills, keyboard-only reach of Run and Kill.
+
+How it is built: the UI reads only the API above. The token list and the gap timeline are derived in the browser from the event stream (the server sends token ids, never token values). Every string from the server is rendered as text. The server serves `web/dist` itself with a same-origin CSP (`script-src 'self'`, `connect-src 'self'`, no framing), so there is no CORS and no off-origin request.
+
+**Time is scenario time.** The running server's clock starts at the wall-clock time and then moves only when a scenario moves it, so a slow human cannot expire a rate window or a token by stepping slowly, and every scripted run gives the same numbers. The token countdown therefore counts down as the script advances, not with your wall clock.
 
 ## The scenarios
 
@@ -73,11 +92,11 @@ JSON bodies only (2 KB), same-origin only (cross-origin `Origin` / `Sec-Fetch-Si
 
 Last run (KS0, working tree and a clean clone): `npm test` exits 0 with 81 server tests and 14 script tests; `npm run doctor` exits 0; `npm run red-checks` reports all 23 mutations caught. The mutations (each removes or inverts one check in a copy of the server): rate comparison `>=`, window boundary, money and token budget boundaries, per-call kill check, revoked-token acceptance, revocation-list refresh, token expiry boundary, missing kill/unrevoke audit entries, auto-reset scope, blast-radius token revocation, token issuance left open after a stop, charging a refused call, kill/gate key derivation, operator name on unrevoke, Origin check, Sec-Fetch-Site check, JSON-only body check, Host guard, credential guard, audit hash verification, and a token value leaking into events.
 
-Docker (OrbStack): `docker compose up` built the image, the container answered `GET /api/health` with `state: ready` on `127.0.0.1:6550`, and `docker ps` showed the port published as `127.0.0.1:6550->6550/tcp`; the loopback publish is also pinned by `scripts/compose.test.mjs`. Not verified: there is no web UI to drive in a browser yet.
+Docker (OrbStack): `docker compose up` built the image, the container answered `GET /api/health` with `state: ready` on `127.0.0.1:6550`, and `docker ps` showed the port published as `127.0.0.1:6550->6550/tcp`; the loopback publish is also pinned by `scripts/compose.test.mjs`. 
 
 ## Ports
 
-Server 6550. 6551-6559 are reserved for stub listeners (none are opened in KS0, the tools are in-process). Vite dev will use 6560, the e2e run 6570, tests 6580-6599.
+Server 6550. 6551-6559 are reserved for stub listeners (none are opened, the tools are in-process). Vite dev uses 6560, the e2e run 6570, tests 6580-6599.
 
 ## License
 

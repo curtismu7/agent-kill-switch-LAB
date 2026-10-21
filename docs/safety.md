@@ -61,9 +61,16 @@ Pinned by `gateway.test.js`: "in-flight call: finishes by default, charged, flag
 | The container publishes its port on loopback only, with no host mounts, no docker socket, no host network, a non-root user, a read-only root filesystem and no capabilities. | `scripts/compose.test.mjs`. |
 | No real credentials in the repo. | `.githooks/pre-commit` runs gitleaks on staged changes and refuses the commit if gitleaks is missing (`scripts/hooks.test.mjs`). Token-shaped test fixtures are assembled at run time. |
 
+## Web UI rules
+
+* The UI is served by the server itself with a same-origin CSP (no framing, no objects, no base tag, no form posts, `connect-src 'self'`). Pinned by `server/test/static.test.js` and, in a real browser, by `scripts/e2e.mjs` (no request leaves the origin, no console error).
+* Every string the server sends is rendered as React text; there is no `dangerouslySetInnerHTML`. Pinned by the vitest hostile-string test and a red check that injects it.
+* Kill and Unrevoke go through the same CSRF-guarded endpoints; `scripts/e2e.mjs` also fires cross-origin POSTs from another page and checks that nothing changed. Unrevoke needs a confirm step and an operator name in the UI, and an operator name at the API.
+* The UI never sees an access token value, only ids; the token list is derived from events.
+
 ## Red checks
 
-`npm run red-checks` copies the server into a temporary directory, removes or inverts one safety check at a time, runs the suite, and requires it to fail. The list and the last result are in the README under "Verification".
+`npm run red-checks-web` does the same for the UI (confirm step, operator name, gauges, token revocation marks, gap, announcements, inert text, diagram highlight). `npm run red-checks` copies the server into a temporary directory, removes or inverts one safety check at a time, runs the suite, and requires it to fail. The list and the last result are in the README under "Verification".
 
 ## What is not covered
 

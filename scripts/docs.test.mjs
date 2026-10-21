@@ -22,7 +22,7 @@ test('safety.md states the in-flight semantics', () => {
 
 test('every npm script the README tells you to run exists', () => {
   const readme = read('README.md');
-  for (const m of readme.matchAll(/^npm (?:run )?([a-z-]+)/gm)) {
+  for (const m of readme.matchAll(/^npm (?:run )?([a-z0-9-]+)/gm)) {
     if (m[1] === 'install') continue;
     assert.ok(pkg.scripts[m[1]], `README runs "npm ${m[1]}" which is not in package.json`);
   }
@@ -37,4 +37,12 @@ test('every scenario is described in the README and every endpoint it lists exis
 
 test('the README only names ports inside 6550-6599', () => {
   for (const m of read('README.md').matchAll(/127\.0\.0\.1:(\d{4})/g)) assert.ok(Number(m[1]) >= 6550 && Number(m[1]) <= 6599, m[0]);
+});
+
+test('the README documents the UI and the build step, and the UI never uses dangerouslySetInnerHTML', () => {
+  assert.match(read('README.md'), /## The web UI/);
+  assert.ok(pkg.scripts.build && pkg.scripts.e2e && pkg.scripts['red-checks-web']);
+  assert.match(read('docs/safety.md'), /Web UI rules/);
+  for (const f of fs.readdirSync(new URL('../web/src/components/', import.meta.url))) assert.doesNotMatch(read(`web/src/components/${f}`), /dangerouslySetInnerHTML/, f);
+  assert.doesNotMatch(read('web/src/App.jsx'), /dangerouslySetInnerHTML/);
 });
