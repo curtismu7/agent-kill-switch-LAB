@@ -29,7 +29,7 @@ function AgentSwitch({ a, operator, reason, inFlight, resetBudget, busy, onKill,
         {a.stop?.gapMs != null && ` Gap to first refusal: ${a.stop.gapMs} ms.`}
       </p>
       <div className="switch-actions">
-        <button type="button" className="btn kill" onClick={onKill} disabled={busy || a.state === "killed"} aria-label={`Kill ${a.id}`}>
+        <button type="button" className="btn kill" onClick={onKill} disabled={a.state === "killed"} aria-label={`Kill ${a.id}`}>
           KILL<span>revoke {agentName(a.id)}</span>
         </button>
         {!asking && <button type="button" className="btn" onClick={() => setAsking(true)} disabled={busy || !stopped}>Unrevoke</button>}
@@ -43,7 +43,7 @@ export default function KillPanel({ agents, global, operator, setOperator, reaso
   const [askGlobal, setAskGlobal] = useState(false);
   return (
     <section className="panel hazard" aria-labelledby="kill-h">
-      <h2 id="kill-h">Kill switch</h2>
+      <h2 id="kill-h" tabIndex={-1}>Kill switch</h2>
       <ModelNote>Kill, trip, unrevoke and auto-reset are reproduced from the AI-DEMO2 demo environment. How a real PingOne product implements revoke is unverified here.</ModelNote>
       <div className="op-form">
         <label>Operator name<input value={operator} maxLength={40} onChange={(e) => setOperator(e.target.value)} autoComplete="off" /></label>
@@ -65,7 +65,7 @@ export default function KillPanel({ agents, global, operator, setOperator, reaso
       <div className="global-row" data-testid="global-switch">
         <strong>Global switch</strong>
         <StatePill state={global.state === "killed" ? "killed" : "armed"} />
-        <button type="button" className="btn kill small" onClick={() => onKill({ scope: "global" })} disabled={busy || global.state === "killed"}>Kill ALL agents</button>
+        <button type="button" className="btn kill small" onClick={() => onKill({ scope: "global" })} disabled={global.state === "killed"}>Kill ALL agents</button>
         {global.state === "killed" && !askGlobal && <button type="button" className="btn" onClick={() => setAskGlobal(true)} disabled={busy}>Unrevoke all</button>}
         {askGlobal && global.state === "killed" && <Confirm what="all agents" operator={operator} busy={busy} onNo={() => setAskGlobal(false)} onYes={async () => { await onUnrevoke({ scope: "global" }); setAskGlobal(false); }} />}
         {global.state === "killed" && global.gapMs != null && <span className="hint">gap to first refusal {global.gapMs} ms, {global.leakedCalls} leaked</span>}

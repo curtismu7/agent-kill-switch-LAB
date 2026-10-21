@@ -132,13 +132,17 @@ export default function App() {
       await refresh();
       setStatus(`Step ${r.run.cursor} of ${r.run.total}${r.run.done ? " (finished)" : ""}.`);
     } catch (e) {
-      if (e.status === 409) setStatus("This run has finished. Press Run to play it again, or Reset.");
+      if (e.code === "run_finished") setStatus("This run has finished. Press Run to play it again, or Reset.");
       else throw e;
     }
   });
 
   const onSimulate = async () => {
     if (simulating) { simId.current += 1; setSimulating(false); setStatus("Simulation paused."); return; }
+    if (run && run.scenario === scenarioId && run.done && (snap?.operatorKills?.length ?? 0) > 0) {
+      setStatus("An operator kill is in force. Unrevoke it (an audited action) or press Reset before simulating again.");
+      return;
+    }
     const my = ++simId.current;
     setSimulating(true); setOverride(null); setError("");
     try {
@@ -190,6 +194,7 @@ export default function App() {
   return (
     <>
       <a className="skip" href="#main">Skip to content</a>
+      <a className="skip skip-kill" href="#kill-h">Skip to the kill switch</a>
       <header className="top">
         <div>
           <h1>Agent Kill Switch</h1>
@@ -229,7 +234,7 @@ export default function App() {
               </select>
             </label>
           </div>
-          <p className="hint">Run plays the whole script at once. Step does one action. Simulate steps for real at the chosen speed, so you can pull the kill switch part-way. Reset clears everything, including the diagram layout.</p>
+          <p className="hint">Run plays the whole script at once. Step does one action. Simulate steps for real at the chosen speed, so you can pull the kill switch part-way. Reset clears everything, including the diagram layout. A scenario will not start while an operator kill is in force: unrevoke it first, or Reset.</p>
           <p className="status" role="status" aria-live="polite" data-testid="run-status">{status}</p>
           {run && <p className="progress" data-testid="progress">Run {run.id}: step {run.cursor} of {run.total}{run.done ? ", finished" : ""}.</p>}
           {run?.done && run.expectation && (

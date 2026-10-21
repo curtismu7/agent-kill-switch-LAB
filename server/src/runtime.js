@@ -170,7 +170,7 @@ export function createRuntime({ clock = createClock(), wallNow = realNow, auditS
     snapshot() {
       world.gateway.settle();
       return {
-        mode: 'demo', now: clock.iso(), fakeClock: clock.fake, run: runInfo(), global: world.gateway.global(), agents: world.gateway.agents(),
+        mode: 'demo', now: clock.iso(), fakeClock: clock.fake, run: runInfo(), operatorKills: killInForce()?.killed ?? [], global: world.gateway.global(), agents: world.gateway.agents(),
         gateway: { ...world.gateway.config }, recentCalls: world.gateway.calls({ limit: 30 }),
       };
     },

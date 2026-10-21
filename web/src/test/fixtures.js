@@ -7,7 +7,7 @@ export const agent = (o = {}) => ({
   stop: null, inFlight: 0, liveTokens: 0, issuanceDisabled: false, ...o,
 });
 export const snapshot = (o = {}) => ({
-  mode: "demo", now: "2026-01-01T12:00:10.000Z", fakeClock: false, run: null,
+  mode: "demo", now: "2026-01-01T12:00:10.000Z", fakeClock: false, run: null, operatorKills: [],
   global: { state: "armed", stoppedAt: null, leakedCalls: 0, gapMs: null },
   agents: [agent(), agent({ id: "agent-beta", label: "Beta" })],
   gateway: { tokenTtlMs: 60000, tokenValidation: "introspect", revocationSyncMs: 30000, flagCheck: true, inFlight: "finish" },

@@ -11,7 +11,8 @@ export default function Feed({ events }) {
     <section className="panel" aria-labelledby="feed-h">
       <h2 id="feed-h">Live activity</h2>
       {rows.length === 0 ? <p className="empty">No activity yet. Pick a scenario and press Run, Step or Simulate.</p> : (
-        <ol className="feed" role="log" aria-label="Agent and gateway activity, newest first" data-testid="feed">
+        <div className="feed" role="log" tabIndex={0} aria-label="Agent and gateway activity, newest first" data-testid="feed">
+          <ol>
           {rows.map((e) => {
             const d = describeEvent(e);
             const [cls, glyph] = TONE[d.tone] || TONE.info;
@@ -23,7 +24,8 @@ export default function Feed({ events }) {
               </li>
             );
           })}
-        </ol>
+          </ol>
+        </div>
       )}
     </section>
   );

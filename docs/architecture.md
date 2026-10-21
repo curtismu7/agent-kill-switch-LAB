@@ -18,7 +18,7 @@ Everything runs in one Node process. There is no tenant, no model, no network be
 
 | File | Role |
 | --- | --- |
-| `clock.js` | The only source of time. A fake clock (tests) moves only when told; the live clock is scenario time: it starts at the wall-clock time and then moves only when a scenario advances it, so a scripted run gives the same numbers every time and a slow human cannot expire a window or token by stepping slowly. No module uses a timer or `Date.now()` except this one (and the health refresh). |
+| `clock.js` | The only source of time. A fake clock (tests) moves only when told; the live clock is scenario time: it starts at the wall-clock time and then moves only when a scenario advances it, so a scripted run gives the same numbers every time and a slow human cannot expire a window or token by stepping slowly. No module uses a timer or `Date.now()` except this one (and the health refresh). `wallNow` is real time and is used only to stamp the audit trail. |
 | `policy.js` | Frozen tables: the two agents, three mock tools, an illustrative price table, default limits, gateway settings, `costMicros()` and `deriveAgentKey()`. |
 | `tokens.js` | Stub token service: opaque short-lived tokens, a revocation list, per-agent issuance switch, bounded store. |
 | `gateway.js` | The gateway and the kill-switch state machine (below). |

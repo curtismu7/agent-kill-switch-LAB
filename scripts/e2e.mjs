@@ -170,6 +170,54 @@ try {
   check(external.length === 0, `no request left ${base} (${external.length}${external.length ? `: ${external.slice(0, 3).join(', ')}` : ''})`);
   check(errors.length === 0, `no console errors or warnings (${errors.length}${errors.length ? `: ${errors.slice(0, 3).join(' | ')}` : ''})`);
 
+  // KS2: keyboard path to the kill switch, layout reset, label clipping, reduced motion, kill-in-force.
+  await reset();
+  await page.reload(); await page.getByTestId('gauges-agent-alpha').waitFor(); // a fresh load: the Tab sequence starts at the top
+  await page.keyboard.press('Tab'); await page.keyboard.press('Tab');
+  check((await active()).includes('Skip to the kill switch'), 'the second Tab stop is the skip link to the kill switch');
+  await page.keyboard.press('Enter');
+  check(await page.evaluate(() => document.activeElement?.id === 'kill-h'), 'the skip link moves focus to the kill switch heading');
+  let presses = 0; let atKill = false;
+  for (; presses < 12 && !atKill; presses++) { await page.keyboard.press('Tab'); atKill = (await active()).endsWith('|Kill agent-alpha'); }
+  check(atKill, `from the skip link, Kill agent-alpha is ${presses} Tab presses away (was 28)`);
+  check((await page.locator('.react-flow__node[tabindex="0"]').count()) === 0, 'diagram boxes are not tab stops');
+
+  const nodeX = () => page.locator('.react-flow__node[data-id="audit"]').evaluate((n) => n.getBoundingClientRect().x);
+  await page.locator('.react-flow__node[data-id="audit"]').scrollIntoViewIfNeeded();
+  const x0 = await nodeX();
+  await page.locator('.react-flow__node[data-id="audit"]').scrollIntoViewIfNeeded();
+  const bb = await page.locator('.react-flow__node[data-id="audit"]').boundingBox();
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down();
+  await page.mouse.move(bb.x + bb.width / 2 + 60, bb.y + bb.height / 2, { steps: 6 }); await page.mouse.up();
+  const x1 = await nodeX();
+  check(Math.abs(x1 - x0) > 20, `dragging the audit box moves it (${Math.round(x1 - x0)} px)`);
+  await reset(); await sleep(600);
+  check(Math.abs((await nodeX()) - x0) < 2, 'Reset puts the dragged box back where it started');
+
+  await pick('rate-loop'); await page.getByRole('button', { name: 'Run', exact: true }).click(); await waitStatus(/Ran "Loop/);
+  const clip = await page.evaluate(() => { const m = document.querySelector('.mark.m-stop').getBoundingClientRect(); const t = document.querySelector('.timeline').getBoundingClientRect(); return { m: m.left, t: t.left }; });
+  check(clip.m >= clip.t - 0.5, `the first timeline label is not clipped on its left edge (label ${clip.m.toFixed(1)}, timeline ${clip.t.toFixed(1)})`);
+  await reset();
+
+  const rm = await browser.newContext({ viewport: { width: 1360, height: 900 }, reducedMotion: 'reduce' });
+  const rmPage = await rm.newPage();
+  await rmPage.goto(base); await rmPage.getByTestId('gauges-agent-alpha').waitFor();
+  await rmPage.getByRole('button', { name: 'Step', exact: true }).click();
+  await rmPage.waitForFunction(() => /step 1 of/.test(document.querySelector('[data-testid="progress"]')?.textContent || ''));
+  const anims = await rmPage.evaluate(() => [...document.querySelectorAll('.react-flow__edge path')].map((p) => getComputedStyle(p).animationName));
+  check(anims.length > 0 && anims.every((a) => a === 'none'), `edges do not animate under prefers-reduced-motion (${[...new Set(anims)].join(',')})`);
+  await rm.close();
+  await reset();
+
+  await page.getByRole('button', { name: 'Kill agent-alpha' }).click();
+  await page.waitForFunction(() => /Killed/.test(document.querySelector('[data-testid="switch-agent-alpha"] .pill').textContent));
+  await pick('normal'); await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await page.getByText('an operator kill is in force: unrevoke it', { exact: false }).first().waitFor();
+  const kst = await api('/api/state');
+  check(kst.agents.find((a) => a.id === 'agent-alpha').state === 'killed', 'Run over an operator kill is refused and alpha stays killed (no silent unrevoke)');
+  const auditNow = await api('/api/audit');
+  check(!auditNow.entries.some((e) => e.type === 'unrevoke'), 'and no unrevoke entry was written');
+
   // A page on another origin cannot kill: a simple cross-origin POST is refused and changes nothing.
   await reset();
   const other = await ctx.newPage();

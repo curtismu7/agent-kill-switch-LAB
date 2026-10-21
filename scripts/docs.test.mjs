@@ -46,3 +46,10 @@ test('the README documents the UI and the build step, and the UI never uses dang
   for (const f of fs.readdirSync(new URL('../web/src/components/', import.meta.url))) assert.doesNotMatch(read(`web/src/components/${f}`), /dangerouslySetInnerHTML/, f);
   assert.doesNotMatch(read('web/src/App.jsx'), /dangerouslySetInnerHTML/);
 });
+
+test('the README states the real number of red-check mutations', () => {
+  const count = (f) => (read(f).split('const MUTATIONS = [')[1].split('\n];')[0].match(/^ {2}\['/gm) || []).length;
+  const readme = read('README.md');
+  assert.ok(readme.includes(`all ${count('scripts/red-checks.mjs')} mutations caught`), 'server mutation count in the README is stale');
+  assert.ok(readme.includes(`all ${count('scripts/red-checks-web.mjs')} UI mutations caught`), 'UI mutation count in the README is stale');
+});

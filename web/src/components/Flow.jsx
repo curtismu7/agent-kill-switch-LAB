@@ -3,7 +3,7 @@ import { Background, Controls, Handle, MarkerType, Position, ReactFlow, applyNod
 import "@xyflow/react/dist/style.css";
 
 // agent -> gateway [1 revocation check, 2 rate cap, 3 cost cap] -> tools, with the token service and the kill switch.
-// The checks are drawn in the order the gateway runs them. Boxes are draggable (arrow keys too). The highlight follows the
+// The checks are drawn in the order the gateway runs them. Boxes are draggable with the mouse; they are not tab stops (the kill switch is the keyboard path that matters, and a skip link goes straight to it). The highlight follows the
 // last real step of the run: it is not an animation of its own.
 export const START = [
   { id: "token", position: { x: 0, y: 0 }, data: { title: "Token service", sub: "short-lived access tokens" } },
@@ -53,7 +53,7 @@ export default function Flow({ path, counts = {}, theme, resetKey = 0, caption }
 
   const nodes = useMemo(() => moved.map((n) => ({
     ...n, type: "box",
-    ariaLabel: `${n.data.title}: ${n.data.sub}${counts[n.id] !== undefined ? `, ${counts[n.id]}` : ""}. Arrow keys move the box.`,
+    ariaLabel: `${n.data.title}: ${n.data.sub}${counts[n.id] !== undefined ? `, ${counts[n.id]}` : ""}..`,
     data: { ...n.data, id: n.id, count: counts[n.id], on: !!active && path.nodes.includes(n.id) && path.bad !== n.id, bad: !!active && path.bad === n.id, dim: !!active && !path.nodes.includes(n.id) },
   })), [moved, path, counts, active]);
   const edges = useMemo(() => EDGES.map((e) => {
@@ -64,8 +64,8 @@ export default function Flow({ path, counts = {}, theme, resetKey = 0, caption }
   return (
     <>
       <div className="flow-wrap" role="group" aria-label="Diagram: token service, kill switch, audit trail, agent, revocation check, rate cap, cost cap and tools. Boxes can be dragged.">
-        <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} colorMode={theme}
-          fitView fitViewOptions={{ padding: 0.08 }} nodesConnectable={false} proOptions={{ hideAttribution: true }} minZoom={0.2}>
+        <ReactFlow key={resetKey} nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} colorMode={theme}
+          fitView fitViewOptions={{ padding: 0.08 }} nodesConnectable={false} nodesFocusable={false} edgesFocusable={false} proOptions={{ hideAttribution: true }} minZoom={0.2}>
           <Background />
           <Controls showInteractive={false} />
         </ReactFlow>

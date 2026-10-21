@@ -21,6 +21,17 @@ const MUTATIONS = [
   ['hostile text is injected as HTML', 'components/Feed.jsx', '<span className="txt">{d.text}</span>', '<span className="txt" dangerouslySetInnerHTML={{ __html: d.text }} />'],
   ['revoked token not marked revoked', 'lib/derive.js', 'k.revokedAt !== null ? "revoked"', 'false ? "revoked"'],
   ['the diagram does not show where a call stopped', 'components/Flow.jsx', 'bad: !!active && path.bad === n.id', 'bad: false'],
+  // ---- KS2 ----
+  ['Kill is disabled while a request is in flight', 'components/KillPanel.jsx', 'onClick={onKill} disabled={a.state === "killed"}', 'onClick={onKill} disabled={busy || a.state === "killed"}'],
+  ['Kill ALL is disabled while a request is in flight', 'components/KillPanel.jsx', 'disabled={global.state === "killed"}>Kill ALL', 'disabled={busy || global.state === "killed"}>Kill ALL'],
+  ['skip link to the kill switch points nowhere', 'App.jsx', 'href="#kill-h"', 'href="#nowhere"'],
+  ['the kill heading cannot take focus', 'components/KillPanel.jsx', '<h2 id="kill-h" tabIndex={-1}>', '<h2 id="kill-h">'],
+  ['diagram boxes are tab stops again', 'components/Flow.jsx', 'nodesFocusable={false} ', ''],
+  ['Reset does not remount the diagram', 'components/Flow.jsx', '<ReactFlow key={resetKey} ', '<ReactFlow '],
+  ['Simulate resets over an operator kill', 'App.jsx', '(snap?.operatorKills?.length ?? 0) > 0', 'false'],
+  ['any 409 on Step is reported as a finished run', 'App.jsx', 'e.code === "run_finished"', 'e.status === 409'],
+  ['the feed is an ordered list with role=log again', 'components/Feed.jsx', '<div className="feed" role="log" tabIndex={0}', '<div className="feed" role="log"'],
+  ['edges keep animating under reduced motion', 'app.css', 'animation: none !important', 'animation: dashdraw 1s infinite'],
 ];
 const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'ks-redweb-'));
 const web = path.join(copy, 'web');
