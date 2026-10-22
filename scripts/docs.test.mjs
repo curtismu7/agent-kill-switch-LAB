@@ -53,3 +53,7 @@ test('the README states the real number of red-check mutations', () => {
   assert.ok(readme.includes(`all ${count('scripts/red-checks.mjs')} mutations caught`), 'server mutation count in the README is stale');
   assert.ok(readme.includes(`all ${count('scripts/red-checks-web.mjs')} UI mutations caught`), 'UI mutation count in the README is stale');
 });
+
+test('CLAUDE.md and the talk track exist and name the app port', () => {
+  for (const f of ['CLAUDE.md', 'docs/talk-track.md']) assert.match(read(f), /6550/, f);
+});
