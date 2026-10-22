@@ -76,7 +76,7 @@ const MUTATIONS = [
 
 const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'ks-red-'));
 fs.symlinkSync(path.join(root, 'node_modules'), path.join(copy, 'node_modules'));
-const run = () => spawnSync(process.execPath, ['--test', ...fs.readdirSync(path.join(copy, 'server/test')).filter((f) => f.endsWith('.test.js')).map((f) => `test/${f}`)], { cwd: path.join(copy, 'server'), encoding: 'utf8' });
+const run = () => spawnSync(process.execPath, ['--test', '--test-reporter=spec', ...fs.readdirSync(path.join(copy, 'server/test')).filter((f) => f.endsWith('.test.js')).map((f) => `test/${f}`)], { cwd: path.join(copy, 'server'), encoding: 'utf8' });
 let bad = 0;
 try {
   fs.cpSync(path.join(root, 'server'), path.join(copy, 'server'), { recursive: true, filter: (s) => !s.includes('node_modules') });
