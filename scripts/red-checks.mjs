@@ -27,7 +27,7 @@ const MUTATIONS = [
   ['Origin check removed (cross-origin kill and unrevoke accepted)', 'safety.js', 'if (origin !== undefined) {', 'if (false) {'],
   ['Sec-Fetch-Site cross-site check removed', 'safety.js', "=== 'cross-site') return refuse", "=== 'never') return refuse"],
   ['JSON-only body check removed', 'safety.js', 'if (hasBody && !/^application', 'if (false && !/^application'],
-  ['Host guard accepts any host', 'safety.js', '!parseHost(req.headers.host)', 'false'],
+  ['Host guard accepts any host', 'safety.js', '!parseHost(req.headers.host, publicHost)', 'false'],
   ['credential headers accepted', 'safety.js', 'CREDENTIAL_HEADERS.some(', 'CREDENTIAL_HEADERS.every('],
   ['audit entry hashes not verified (edited entries pass)', 'audit.js', 'if (a.length !== b.length || !crypto.timingSafeEqual(a, b))', 'if (false)'],
   ['UI is served without the same-origin CSP', 'app.js', "'Content-Security-Policy': UI_CSP", "'X-Foo': UI_CSP"],

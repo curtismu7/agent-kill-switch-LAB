@@ -3,6 +3,7 @@
 import { AGENTS, DEFAULT_GATEWAY, DEFAULT_LIMITS, MODELS, TOOLS } from './policy.js';
 import { SCENARIOS } from './scenarios.js';
 import { PORT_MAX, PORT_MIN, assertBindAllowed, bindHost, portInRange, serverPort } from './safety.js';
+import { modeChecks } from './mode.js';
 
 export function runChecks({ env = process.env } = {}) {
   const checks = [];
@@ -13,6 +14,8 @@ export function runChecks({ env = process.env } = {}) {
 
   try { add('bind', 'pass', `${assertBindAllowed(bindHost(env), env)}${env.KILL_SWITCH_BIND ? ' (KILL_SWITCH_BIND opt-in)' : ' (loopback)'}`); }
   catch (e) { add('bind', 'fail', e.message); }
+
+  for (const c of modeChecks(env)) checks.push(c);
 
   const port = serverPort(env);
   add('port-range', portInRange(port) ? 'pass' : 'fail', portInRange(port) ? `server port ${port} (within ${PORT_MIN}-${PORT_MAX})` : `server port ${port} is outside ${PORT_MIN}-${PORT_MAX}`);

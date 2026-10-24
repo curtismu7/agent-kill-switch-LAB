@@ -13,7 +13,7 @@ export const TRANSCRIPT_CAP = 300;
 const OPERATOR = 'demo-script';
 const TOKEN_REASONS = new Set(['token_expired', 'token_revoked', 'token_unknown', 'token_missing']);
 
-export function createRuntime({ clock = createClock(), wallNow = realNow, auditStore, auditCap } = {}) {
+export function createRuntime({ clock = createClock(), wallNow = realNow, auditStore, auditCap, hosted = false } = {}) {
   const events = createEvents({ clock });
   const audit = createAudit({ store: auditStore, now: () => new Date(wallNow()), scenarioNow: () => clock.iso(), cap: auditCap });
   let world = null;
@@ -132,7 +132,7 @@ export function createRuntime({ clock = createClock(), wallNow = realNow, auditS
   const runInfo = () => (run ? { id: run.id, scenario: run.scenario, cursor: run.cursor, total: getScenario(run.scenario).actions.length, done: run.done, counts: structuredClone(run.counts), expectation: run.expectation, transcript: structuredClone(run.transcript) } : null);
 
   return {
-    clock, audit, events, mode: 'demo',
+    clock, audit, events, mode: 'demo', hosted,
     get gateway() { return world.gateway; },
     scenarios: SCENARIOS,
     // Start the scenario afresh and execute every action.
@@ -170,7 +170,7 @@ export function createRuntime({ clock = createClock(), wallNow = realNow, auditS
     snapshot() {
       world.gateway.settle();
       return {
-        mode: 'demo', now: clock.iso(), fakeClock: clock.fake, run: runInfo(), operatorKills: killInForce()?.killed ?? [], global: world.gateway.global(), agents: world.gateway.agents(),
+        mode: 'demo', hosted, now: clock.iso(), fakeClock: clock.fake, run: runInfo(), operatorKills: killInForce()?.killed ?? [], global: world.gateway.global(), agents: world.gateway.agents(),
         gateway: { ...world.gateway.config }, recentCalls: world.gateway.calls({ limit: 30 }),
       };
     },

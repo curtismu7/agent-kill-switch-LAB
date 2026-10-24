@@ -1,0 +1,84 @@
+# Hosted mock build (rule 18). Tokens rendered by k8s/deploy.sh: __IMAGE__ and __SE_HOST__ only. No namespace field: deploy.sh sets it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-kill-switch
+  labels:
+    app.kubernetes.io/name: agent-kill-switch
+    app.kubernetes.io/part-of: ping-demo-family
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent-kill-switch
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agent-kill-switch
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: agent-kill-switch
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 6550
+          env:
+            # The hosted mock build: MODE=se-mock refuses live and credential settings (server/src/mode.js).
+            - name: MODE
+              value: se-mock
+            - name: KILL_SWITCH_PORT
+              value: "6550"
+            # The pod must listen on all interfaces so the Service can reach it. The public host is the one Host the ingress serves.
+            - name: KILL_SWITCH_BIND
+              value: "0.0.0.0"
+            - name: KILL_SWITCH_PUBLIC_HOST
+              value: __SE_HOST__
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # Probes send the loopback Host: the server's Host guard refuses a pod IP or any other Host (421).
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: 127.0.0.1:6550
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: 127.0.0.1:6550
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3

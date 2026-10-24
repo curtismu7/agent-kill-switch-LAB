@@ -45,6 +45,7 @@ main:focus { outline: none; }
 .card { box-shadow: none; background: var(--panel2); }
 .hint { color: var(--muted); font-size: .88rem; margin: .4rem 0; }
 .empty { color: var(--muted); font-style: italic; }
+.hosted-banner { background: var(--trip-bg); color: var(--trip); border-bottom: 2px solid var(--trip); margin: 0; padding: 8px 16px; font: 700 .9rem var(--body); text-align: center; }
 .banner { background: var(--kill-bg); color: var(--kill); border: 2px solid var(--kill); padding: 10px 14px; border-radius: 6px; margin: 0; font-weight: 600; }
 
 .btn { font: 600 .95rem var(--body); min-height: 44px; padding: 0 16px; border-radius: 4px; border: 2px solid var(--ink); background: var(--panel); color: var(--ink); cursor: pointer; }
