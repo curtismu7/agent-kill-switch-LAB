@@ -16,7 +16,7 @@
     "start": "npm start -w server",
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
-    "test": "npm test -w server && npm test -w web && node --test scripts/compose.test.mjs scripts/hooks.test.mjs scripts/docs.test.mjs scripts/doctor.test.mjs scripts/content-pack.test.mjs scripts/shelf-entry.test.mjs",
+    "test": "npm test -w server && npm test -w web && node --test scripts/compose.test.mjs scripts/hooks.test.mjs scripts/docs.test.mjs scripts/doctor.test.mjs scripts/content-pack.test.mjs scripts/shelf-entry.test.mjs scripts/k8s.test.mjs",
     "e2e": "node scripts/e2e.mjs",
     "doctor": "node scripts/doctor.mjs",
     "red-checks": "node scripts/red-checks.mjs",

@@ -1,0 +1,20 @@
+# Plain HTTP routing for the public host. The ingress passes the Host header through unchanged (no rewrite): the server accepts
+# exactly KILL_SWITCH_PUBLIC_HOST. TLS and the ingress class come from the cluster defaults (UNVERIFIED for the SE cluster).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agent-kill-switch
+  labels:
+    app.kubernetes.io/name: agent-kill-switch
+spec:
+  rules:
+    - host: __SE_HOST__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: agent-kill-switch
+                port:
+                  number: 80

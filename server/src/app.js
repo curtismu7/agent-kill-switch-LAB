@@ -6,8 +6,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createHealth } from './health.js';
-import { createRuntime } from './runtime.js';
-import { assertBindAllowed, bindHost, credentialGuard, hostGuard, originGuard, serverPort } from './safety.js';
+import { assertBindAllowed, bindHost, credentialGuard, makeGuards, serverPort } from './safety.js';
+import { isHosted, publicHostOf } from './mode.js';
+import { createWorkspaces } from './workspaces.js';
 import { describeScenario, getScenario } from './scenarios.js';
 import { MODELS, TOOLS } from './policy.js';
 
@@ -37,10 +38,92 @@ function operatorBody(body, kind) {
   return { value: body };
 }
 
+// Builds the /api router for ONE runtime (one workspace). Every route reads and writes only that runtime.
+function buildApi(runtime) {
+    const api = express.Router();
+    api.use(express.json({ limit: '2kb' }));
+
+    api.get('/scenarios', (_req, res) => res.json({ mode: runtime.mode, scenarios: runtime.scenarios.map(describeScenario) }));
+    api.post('/scenarios/:id/run', (req, res) => {
+      if (!ID_RE.test(req.params.id) || !getScenario(req.params.id)) return bad(res, 'no such scenario', 404);
+      if (req.body && Object.keys(req.body).length) return bad(res, 'running a scenario takes no parameters');
+      const run = runtime.runScenario(req.params.id);
+      if (run.error) return res.status(409).json({ error: run.error, killed: run.killed, message: KILL_IN_FORCE });
+      res.json({ mode: runtime.mode, run, state: runtime.snapshot() });
+    });
+    api.post('/scenarios/:id/step', (req, res) => {
+      if (!ID_RE.test(req.params.id) || !getScenario(req.params.id)) return bad(res, 'no such scenario', 404);
+      if (req.body && Object.keys(req.body).length) return bad(res, 'stepping a scenario takes no parameters');
+      const r = runtime.stepScenario(req.params.id);
+      if (r.error === 'kill_in_force') return res.status(409).json({ error: r.error, killed: r.killed, message: KILL_IN_FORCE });
+      if (r.error) return res.status(409).json({ error: r.error, message: 'this run has finished: POST /run to run it again, or POST /api/reset' });
+      res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
+    });
+
+    api.get('/agents', (_req, res) => res.json({ mode: runtime.mode, agents: runtime.gateway.agents(), global: runtime.gateway.global(), models: MODELS, tools: TOOLS }));
+    api.get('/state', (_req, res) => res.json(runtime.snapshot()));
+
+    // Operator endpoints. State-changing, so the CSRF guard above applies: a page on another origin cannot reach them.
+    api.post('/kill', (req, res) => {
+      const { value, error } = operatorBody(req.body, 'kill');
+      if (error) return bad(res, error);
+      const r = runtime.kill(value);
+      if (!r.ok) return res.status(r.status).json({ error: r.error });
+      res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
+    });
+    api.post('/unrevoke', (req, res) => {
+      const { value, error } = operatorBody(req.body, 'unrevoke');
+      if (error) return bad(res, error);
+      const r = runtime.unrevoke(value);
+      if (!r.ok) return res.status(r.status).json({ error: r.error });
+      res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
+    });
+
+    api.get('/events', (req, res) => {
+      const since = uint(req.query.since); const limit = uint(req.query.limit ?? '200', 500);
+      if (since === null || limit === null || limit < 1) return bad(res, 'since and limit must be small non-negative integers');
+      res.json({ mode: runtime.mode, ...runtime.events.list({ since, limit }) });
+    });
+
+    // The audit trail is read-only through the API: GET only.
+    api.route('/audit').get((req, res) => {
+      const after = uint(req.query.after); const limit = uint(req.query.limit ?? '200', 500);
+      if (after === null || limit === null || limit < 1) return bad(res, 'after and limit must be small non-negative integers');
+      res.json({ mode: runtime.mode, entries: runtime.audit.list({ after, limit }), headSeq: runtime.audit.headSeq, size: runtime.audit.size });
+    }).all(methods('GET'));
+    api.route('/audit/verify').get((_req, res) => res.json({ mode: runtime.mode, ...runtime.audit.verify() })).all(methods('GET'));
+
+    api.post('/reset', (req, res) => {
+      if (req.body && Object.keys(req.body).length) return bad(res, 'POST /api/reset takes no parameters');
+      runtime.reset();
+      res.json({ ok: true, mode: runtime.mode });
+    });
+
+    api.use((_req, res) => bad(res, 'no such endpoint', 404));
+    api.use((err, _req, res, _next) => {
+      if (err.type === 'entity.too.large') return res.status(413).json({ error: 'payload_too_large', message: 'request body is too large' });
+      if (err.type === 'entity.parse.failed') return bad(res, 'request body is not valid JSON');
+      if (err instanceof URIError || err.status === 400) return bad(res, 'malformed request');
+      console.error('[agent-kill-switch] api error:', err.message);
+      return res.status(500).json({ error: 'server_error' });
+    });
+  return api;
+}
+
+// The API router per runtime, cached weakly so a dropped workspace is garbage collected.
+const routers = new WeakMap();
+const routerFor = (runtime) => {
+  let r = routers.get(runtime);
+  if (!r) { r = buildApi(runtime); routers.set(runtime, r); }
+  return r;
+};
+
 // webDist: directory with the built UI. null (default, so API tests never depend on a build) disables static serving.
-export function createApp({ runtime, health = createHealth(), webDist = null } = {}) {
+// Either `runtime` (one fixed runtime: the tests) or `workspaces` (one runtime per browser, the default for startHttpServer).
+export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null } = {}) {
   const app = express();
   app.disable('x-powered-by');
+  const { hostGuard, originGuard } = makeGuards({ publicHost });
   app.use(hostGuard);
   app.use(credentialGuard);
   app.use(originGuard);
@@ -48,94 +131,31 @@ export function createApp({ runtime, health = createHealth(), webDist = null } =
   if (webDist && fs.existsSync(path.join(webDist, 'index.html'))) {
     app.use(express.static(webDist, { index: 'index.html', dotfiles: 'ignore', setHeaders: (res) => res.set({ ...API_HEADERS, 'Content-Security-Policy': UI_CSP }) }));
   }
-
-  const api = express.Router();
-  api.use('/health', health.router);
-  api.use(express.json({ limit: '2kb' }));
-
-  api.get('/scenarios', (_req, res) => res.json({ mode: runtime.mode, scenarios: runtime.scenarios.map(describeScenario) }));
-  api.post('/scenarios/:id/run', (req, res) => {
-    if (!ID_RE.test(req.params.id) || !getScenario(req.params.id)) return bad(res, 'no such scenario', 404);
-    if (req.body && Object.keys(req.body).length) return bad(res, 'running a scenario takes no parameters');
-    const run = runtime.runScenario(req.params.id);
-    if (run.error) return res.status(409).json({ error: run.error, killed: run.killed, message: KILL_IN_FORCE });
-    res.json({ mode: runtime.mode, run, state: runtime.snapshot() });
-  });
-  api.post('/scenarios/:id/step', (req, res) => {
-    if (!ID_RE.test(req.params.id) || !getScenario(req.params.id)) return bad(res, 'no such scenario', 404);
-    if (req.body && Object.keys(req.body).length) return bad(res, 'stepping a scenario takes no parameters');
-    const r = runtime.stepScenario(req.params.id);
-    if (r.error === 'kill_in_force') return res.status(409).json({ error: r.error, killed: r.killed, message: KILL_IN_FORCE });
-    if (r.error) return res.status(409).json({ error: r.error, message: 'this run has finished: POST /run to run it again, or POST /api/reset' });
-    res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
-  });
-
-  api.get('/agents', (_req, res) => res.json({ mode: runtime.mode, agents: runtime.gateway.agents(), global: runtime.gateway.global(), models: MODELS, tools: TOOLS }));
-  api.get('/state', (_req, res) => res.json(runtime.snapshot()));
-
-  // Operator endpoints. State-changing, so the CSRF guard above applies: a page on another origin cannot reach them.
-  api.post('/kill', (req, res) => {
-    const { value, error } = operatorBody(req.body, 'kill');
-    if (error) return bad(res, error);
-    const r = runtime.kill(value);
-    if (!r.ok) return res.status(r.status).json({ error: r.error });
-    res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
-  });
-  api.post('/unrevoke', (req, res) => {
-    const { value, error } = operatorBody(req.body, 'unrevoke');
-    if (error) return bad(res, error);
-    const r = runtime.unrevoke(value);
-    if (!r.ok) return res.status(r.status).json({ error: r.error });
-    res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
-  });
-
-  api.get('/events', (req, res) => {
-    const since = uint(req.query.since); const limit = uint(req.query.limit ?? '200', 500);
-    if (since === null || limit === null || limit < 1) return bad(res, 'since and limit must be small non-negative integers');
-    res.json({ mode: runtime.mode, ...runtime.events.list({ since, limit }) });
-  });
-
-  // The audit trail is read-only through the API: GET only.
-  api.route('/audit').get((req, res) => {
-    const after = uint(req.query.after); const limit = uint(req.query.limit ?? '200', 500);
-    if (after === null || limit === null || limit < 1) return bad(res, 'after and limit must be small non-negative integers');
-    res.json({ mode: runtime.mode, entries: runtime.audit.list({ after, limit }), headSeq: runtime.audit.headSeq, size: runtime.audit.size });
-  }).all(methods('GET'));
-  api.route('/audit/verify').get((_req, res) => res.json({ mode: runtime.mode, ...runtime.audit.verify() })).all(methods('GET'));
-
-  api.post('/reset', (req, res) => {
-    if (req.body && Object.keys(req.body).length) return bad(res, 'POST /api/reset takes no parameters');
-    runtime.reset();
-    res.json({ ok: true, mode: runtime.mode });
-  });
-
-  api.use((_req, res) => bad(res, 'no such endpoint', 404));
-  api.use((err, _req, res, _next) => {
-    if (err.type === 'entity.too.large') return res.status(413).json({ error: 'payload_too_large', message: 'request body is too large' });
-    if (err.type === 'entity.parse.failed') return bad(res, 'request body is not valid JSON');
-    if (err instanceof URIError || err.status === 400) return bad(res, 'malformed request');
-    console.error('[agent-kill-switch] api error:', err.message);
-    return res.status(500).json({ error: 'server_error' });
-  });
-  app.use('/api', api);
+  // The health probe is shared and reads no workspace state, so it does not create one.
+  app.use('/api/health', health.router);
+  const ws = runtime ? null : (workspaces || createWorkspaces());
+  app.use('/api', (req, res, next) => routerFor(runtime ?? ws.resolve(req, res))(req, res, next));
   app.use((_req, res) => bad(res, 'no such endpoint', 404));
   app.use((err, _req, res, _next) => (err instanceof URIError || err.status === 400 ? bad(res, 'malformed request') : res.status(500).json({ error: 'server_error' })));
   return app;
 }
 
 
-// Boot on `port`. Refuses a non-loopback host unless KILL_SWITCH_BIND is set.
+// Boot on `port`. Refuses a non-loopback host unless KILL_SWITCH_BIND is set. MODE=se-mock serves one public host (see mode.js)
+// and gives every browser its own workspace; a local run does the same, with the same single-user behaviour.
 export async function startHttpServer({ port = serverPort(), host = bindHost(), env = process.env, runtime, webDist = DEFAULT_WEB_DIST } = {}) {
   assertBindAllowed(host, env);
-  const rt = runtime || createRuntime();
+  const hosted = isHosted(env);
+  const publicHost = publicHostOf(env);
+  const workspaces = runtime ? null : createWorkspaces({ hosted });
   const health = createHealth({ env });
   return new Promise((resolve, reject) => {
-    const httpServer = createApp({ runtime: rt, health, webDist }).listen(port, host);
+    const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost }).listen(port, host);
     httpServer.once('error', (e) => { health.stop(); reject(e); });
     httpServer.once('listening', () => {
       const { port: bound } = httpServer.address();
       resolve({
-        port: bound, runtime: rt, url: `http://127.0.0.1:${bound}/`,
+        port: bound, runtime: runtime ?? null, workspaces, url: `http://127.0.0.1:${bound}/`, hosted,
         close: async () => { health.stop(); await new Promise((r) => { httpServer.closeAllConnections?.(); httpServer.close(r); }); },
       });
     });

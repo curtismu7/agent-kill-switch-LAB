@@ -32,12 +32,18 @@ let up = false;
 for (let i = 0; i < 60 && !up; i++) { try { up = (await fetch(`${base}/api/health`)).ok; } catch { await sleep(250); } }
 if (!up) { server.kill(); console.error('server did not start'); process.exit(2); }
 fs.mkdirSync(shots, { recursive: true });
-const api = async (p, init) => (await fetch(`${base}${p}`, init)).json();
+// The API call from the test itself carries the browser's workspace cookie, so it reads the same workspace the page shows.
+let jar = null;
+const api = async (p, init) => {
+  const cookie = jar ? (await jar.cookies(base)).map((c) => `${c.name}=${c.value}`).join('; ') : '';
+  return (await fetch(`${base}${p}`, { ...init, headers: { ...(cookie ? { cookie } : {}), ...(init?.headers || {}) } })).json();
+};
 
 const browser = await chromium.launch({ executablePath: process.env.E2E_CHROMIUM || undefined });
 try {
   const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 }, colorScheme: 'light' });
   const page = await ctx.newPage();
+  jar = ctx;
   const external = []; const errors = [];
   page.on('request', (r) => { if (!r.url().startsWith(base) && !/^(data|blob):/.test(r.url())) external.push(r.url()); });
   page.on('pageerror', (e) => errors.push(e.message));

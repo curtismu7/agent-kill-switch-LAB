@@ -193,6 +193,11 @@ export default function App() {
 
   return (
     <>
+      {snap?.hosted && (
+        <p className="hosted-banner" role="status" data-testid="hosted-banner">
+          HOSTED SIMULATION. This is a mock on a shared demo host. No tenant, no real model and no real agent is involved, and every number is invented.
+        </p>
+      )}
       <a className="skip" href="#main">Skip to content</a>
       <a className="skip skip-kill" href="#kill-h">Skip to the kill switch</a>
       <header className="top">

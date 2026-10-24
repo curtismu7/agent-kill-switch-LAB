@@ -121,3 +121,16 @@ test("the theme toggle flips data-theme", async () => {
   await userEvent.click(screen.getByRole("button", { name: /theme/ }));
   expect(document.documentElement.getAttribute("data-theme")).not.toBe(before);
 });
+
+test("a hosted build shows the HOSTED SIMULATION banner on the page; a local build does not", async () => {
+  setup({ state: snapshot({ hosted: true }) });
+  render(<App />);
+  expect(await screen.findByTestId("hosted-banner")).toHaveTextContent("HOSTED SIMULATION");
+});
+
+test("a local build shows no hosted banner", async () => {
+  setup({ state: snapshot({ hosted: false }) });
+  render(<App />);
+  await screen.findByTestId("mode-badge");
+  expect(screen.queryByTestId("hosted-banner")).toBeNull();
+});

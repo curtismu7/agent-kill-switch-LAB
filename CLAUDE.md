@@ -12,6 +12,7 @@ npm run doctor
 npm run e2e          # headless Chromium on 6570; needs npm run build first
 npm run content-pack # regenerate and validate content-pack.json from content/*.json
 npm start            # http://127.0.0.1:6550/  (KILL_SWITCH_PORT overrides; only 6550-6599 accepted)
+k8s/deploy.sh --dry-run  # hosted mock build: renders k8s/ (needs NAMESPACE, IMAGE, SE_HOST); apply needs OWNER_APPROVED=1
 ```
 
 Ports: server 6550, Vite dev 6560, e2e 6570, tests 6580-6599. Slow mutation checks: `npm run red-checks`, `npm run red-checks-web`.
@@ -43,4 +44,5 @@ Ports: server 6550, Vite dev 6560, e2e 6570, tests 6580-6599. Slow mutation chec
 
 - Edit `content/terms.json` and `content/stories.json`, then `npm run content-pack` (validates against `docs/content-pack.schema.json`). Commit the regenerated `content-pack.json`.
 - Shelf entry: `docs/shelf-entry.json` (catalog id D14, port 6550), tested by `scripts/shelf-entry.test.mjs`. Set `composeFile` to your checkout path.
+- Hosted build (`MODE=se-mock`, rule 18): mock only; `ks_ws` cookie per browser workspace; the public host is the only non-loopback Host. Details and the owner-approval gate: [docs/k8s.md](docs/k8s.md).
 - A new scenario goes in `server/src/scenarios.js` and must be described in the README (a docs test checks it).
