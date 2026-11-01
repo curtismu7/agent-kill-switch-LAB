@@ -79,6 +79,9 @@ test("Live: every field reaches the API exactly as typed (workload, service, pre
   await waitFor(() => expect(api.postFedidRevoke).toHaveBeenCalledWith({ workload: "fi-nightly-job", operator: "alex", reason: "because" }));
   await user.click(screen.getByTestId("fedid-outage"));
   await waitFor(() => expect(api.postFedidIssuer).toHaveBeenCalledWith({ outage: true }));
+  await waitFor(() => expect(screen.getByTestId("fedid-outage")).toBeChecked());
+  await user.click(screen.getByTestId("fedid-outage"));
+  await waitFor(() => expect(api.postFedidIssuer).toHaveBeenLastCalledWith({ outage: false }));
   await user.clear(screen.getByTestId("fedid-seconds")); await user.type(screen.getByTestId("fedid-seconds"), "45");
   await user.click(screen.getByTestId("fedid-advance"));
   await waitFor(() => expect(api.postFedidAdvance).toHaveBeenCalledWith({ seconds: 45 }));
@@ -164,7 +167,7 @@ test("the banner is on both tabs and shows the mode; presenter mode (P, Esc) kee
   expect(screen.getByTestId("release-banner")).toHaveTextContent(BANNER);
   fireEvent.keyDown(window, { key: "Escape" });
   await waitFor(() => expect(screen.getByTestId("fedid-tab")).toHaveAttribute("data-presenter", "false"));
-  await user.type(screen.getByTestId("fedid-operator"), "pppp");
+  await user.type(screen.getByTestId("fedid-operator"), "ppp");
   expect(screen.getByTestId("fedid-tab")).toHaveAttribute("data-presenter", "false");
   await user.click(screen.getByTestId("tab-ks"));
   expect(screen.getByTestId("release-banner")).toHaveTextContent(BANNER);
