@@ -46,6 +46,7 @@ export const APPS = deepFreeze({
 });
 
 export const REQUEST_CAP = 300; // lab-invented: requests one Live session may send before Reset
+export const ISSUER_CAP = 40; // lab-invented: issuer outage changes one Live session may make before Reset (each change is one audit entry)
 export const LOG_KEEP = 50; // newest results the state carries
 export const ALGS_ALLOWED = deepFreeze(['RS256']); // deck: "Only asymmetric signature algorithms are accepted"
 

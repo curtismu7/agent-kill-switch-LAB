@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { createAudit } from '../src/audit.js';
 import { createFedId, parseAdvanceBody, parseIssuerBody, parseRequestBody, parseRevokeBody } from '../src/fedid/engine.js';
 import { signToken } from '../src/fedid/jwt.js';
-import { APPS, IDENTITIES, ISSUERS, KEYSET_REFRESH_SEC, MAX_LIFETIME_SEC, REQUEST_CAP } from '../src/fedid/tables.js';
+import { APPS, IDENTITIES, ISSUERS, ISSUER_CAP, KEYSET_REFRESH_SEC, MAX_LIFETIME_SEC, REQUEST_CAP, REASON_STATUS } from '../src/fedid/tables.js';
 
 const T = Date.UTC(2026, 10, 2, 9, 0, 0);
 const B = 'fi-billing-agent';
@@ -247,4 +247,116 @@ test('the revoke record keeps the operator and reason, masked', () => {
   const op = other.e.state().identities.find((i) => i.id === N).revokedBy;
   assert.ok(!op.includes('OPERATORSECRET99'), op);
   assert.ok(!JSON.stringify(other.audit.list()).includes('OPERATORSECRET99'), 'nor in the audit trail');
+});
+
+// ---- findings of the 2026-11-01 review: each test below was proven by a mutant (scripts/red-checks-fedid.mjs) ----------------------------------
+
+test('a revoke is judged on the masked operator: a name made only of invisible characters is refused 400 and nothing changes', () => {
+  const { e, audit, revoke } = make();
+  for (const op of ['\u200b\u200b', '\u200b \u2060', '\u0007\u0001', '\ufeff']) {
+    const r = revoke(B, op);
+    assert.deepEqual([r.ok, r.status, r.error], [false, 400, 'bad_request'], JSON.stringify(op));
+  }
+  assert.equal(e.state().identities.find((i) => i.id === B).state, 'active', 'still active');
+  assert.equal(audit.list().some((x) => x.type === 'fedid_revoke'), false, 'nothing audited');
+  assert.equal(revoke(B, '\u200bops').ok, true, 'a name with real characters is accepted, and stored without the invisible ones');
+  assert.equal(e.state().identities.find((i) => i.id === B).revokedBy, 'ops');
+});
+
+test('the stored operator is cut at 40 characters and the stored reason at 200, after masking', () => {
+  const { e, audit, revoke } = make();
+  assert.equal(revoke(B, 'ab '.repeat(60).trim(), 'cd '.repeat(300).trim()).ok, true);
+  const id = e.state().identities.find((i) => i.id === B);
+  assert.equal(id.revokedBy.length, 41, '40 characters and the ellipsis');
+  assert.equal(id.note.length, 201, '200 characters and the ellipsis');
+  const a = audit.list().find((x) => x.type === 'fedid_revoke');
+  assert.deepEqual([a.data.operator.length, a.data.note.length], [41, 201]);
+});
+
+test('issuer outage: a real change is audited once; setting the state it already has is accepted and audited NOT at all, and does not count', () => {
+  const { e, audit } = make();
+  const count = () => audit.list().filter((x) => x.type === 'fedid_issuer').length;
+  for (let i = 0; i < 5; i += 1) assert.equal(e.setIssuer({ outage: false }).ok, true);
+  assert.equal(count(), 0, 'already false: nothing to audit');
+  assert.equal(e.setIssuer({ outage: true }).ok, true);
+  for (let i = 0; i < 5; i += 1) assert.equal(e.setIssuer({ outage: true }).ok, true);
+  assert.equal(count(), 1, 'one change, one entry');
+  assert.equal(e.state().issuerChanges, 1);
+});
+
+test('ISSUER CAP: the ISSUER_CAP-th change is allowed, the next is refused 429 whole; a repeat of the current state is still accepted; Reset restores it', () => {
+  const { e, audit } = make();
+  let outage = false;
+  for (let i = 0; i < ISSUER_CAP; i += 1) { outage = !outage; assert.equal(e.setIssuer({ outage }).ok, true, `change ${i + 1}`); }
+  assert.equal(e.state().issuerChanges, ISSUER_CAP);
+  const refused = e.setIssuer({ outage: !outage });
+  assert.deepEqual([refused.ok, refused.status, refused.error], [false, 429, 'issuer_cap']);
+  assert.equal(e.state().issuerOutage, outage, 'a refused change changes nothing');
+  assert.equal(audit.list({ limit: 500 }).filter((x) => x.type === 'fedid_issuer').length, ISSUER_CAP, 'and writes nothing');
+  assert.equal(e.setIssuer({ outage }).ok, true, 'saying the state it already has is not a change');
+  e.reset();
+  assert.equal(e.setIssuer({ outage: true }).ok, true);
+  assert.equal(e.state().issuerChanges, 1);
+});
+
+test('AUDIT: a flood of issuer toggles cannot push the revoke entry out of the trail (the default 2000-entry cap)', () => {
+  const audit = createAudit({ now: () => new Date(T) });
+  const e = createFedId({ audit, startMs: () => T, signing: 'mock' });
+  assert.equal(e.revoke({ workload: B, operator: 'ops', reason: 'x' }).ok, true);
+  let refused = 0;
+  for (let i = 0; i < 2100; i += 1) { if (!e.setIssuer({ outage: !e.state().issuerOutage }).ok) refused += 1; } // every call asks for a real change
+  assert.equal(refused, 2100 - ISSUER_CAP);
+  const v = audit.verify();
+  assert.equal(v.evicted, 0, 'nothing was evicted');
+  assert.equal(audit.list({ limit: 500 }).some((x) => x.type === 'fedid_revoke'), true, 'the revoke entry is still in the trail');
+});
+
+test('summary: only requests made AFTER the revoke are counted as after it (the last request before it is not)', () => {
+  const { e, go, revoke } = make();
+  assert.equal(go(B).result.decision, 'allowed'); // n = 1, before the revoke
+  assert.equal(revoke().ok, true);
+  assert.equal(go(B).result.decision, 'refused'); // n = 2
+  const a = e.state().identities.find((i) => i.id === B).summary.afterRevoke;
+  assert.deepEqual([a.requests, a.allowed, a.refused, a.tokenStillValid, a.firstDecision.n], [1, 0, 1, 1, 2]);
+  assert.equal(e.state().identities.find((i) => i.id === B).summary.matrix.find((m) => m.service === 'mcp' && m.via === 'token').status, 403);
+});
+
+test('a token that the gateway cannot bind to an identity is not "still valid"; an expired one is 401; a negative lifetime is refused', () => {
+  const { e } = make();
+  const unbound = e.verifyRaw(craft(goodHeader, goodClaims({ sub: 'someone-else' })));
+  assert.deepEqual([unbound.reason, unbound.status, unbound.tokenStillValid], ['no_matching_identity', 401, false], 'binding is part of "still valid"');
+  const expired = e.verifyRaw(craft(goodHeader, goodClaims({ exp: T / 1000 - 1, iat: T / 1000 - 601 })));
+  assert.deepEqual([expired.reason, expired.status, expired.tokenStillValid], ['token_expired', 401, false]);
+  const backwards = e.verifyRaw(craft(goodHeader, goodClaims({ iat: T / 1000 + 100, exp: T / 1000 + 50 })));
+  assert.deepEqual([backwards.reason, backwards.status], ['lifetime_exceeds_cap', 401], 'exp before iat is not a short lifetime');
+  const same = e.verifyRaw(craft(goodHeader, goodClaims({ iat: T / 1000 + 50, exp: T / 1000 + 50 })));
+  assert.equal(same.reason, 'lifetime_exceeds_cap', 'exp equal to iat is not a lifetime either');
+});
+
+test('every refusal reason has the status its kind deserves: 401 for the token, 403 for the identity and the scope', () => {
+  assert.deepEqual({ ...REASON_STATUS }, {
+    token_malformed: 401, alg_not_allowed: 401, signature_invalid: 401, lifetime_exceeds_cap: 401, token_expired: 401, no_matching_identity: 401, identity_revoked: 403, scope_missing: 403,
+  });
+});
+
+test('presenting by key: a workload with no agent access key is refused on the key route (the check is on the key, not just the identity)', () => {
+  const { e } = make();
+  const noKey = e.verifyRaw(craft({ ...goodHeader, kid: ISSUERS.ci.kid }, goodClaims({ iss: ISSUERS.ci.iss, sub: IDENTITIES[N].subject, aud: IDENTITIES[N].audience }), 'ci'), { via: 'key' });
+  assert.equal(noKey.decision, 'refused');
+  assert.equal(noKey.checks.find((c) => c.id === 'key_principal').ok, false);
+  const viaToken = e.verifyRaw(craft({ ...goodHeader, kid: ISSUERS.ci.kid }, goodClaims({ iss: ISSUERS.ci.iss, sub: IDENTITIES[N].subject, aud: IDENTITIES[N].audience }), 'ci'), { via: 'token' });
+  assert.equal(viaToken.decision, 'allowed', 'the control: the same token presented as a token is fine');
+});
+
+test('token parsing is bounded: exactly three non-empty parts of at most MAX_PART characters each', async () => {
+  const { parseToken, MAX_PART } = await import('../src/fedid/jwt.js');
+  const ok = craft(goodHeader, goodClaims());
+  const [h, p, s] = ok.split('.');
+  assert.equal(parseToken(ok).ok, true);
+  assert.equal(parseToken(`${h}.${p}`).ok, false, 'two parts');
+  assert.equal(parseToken(`${h}.${p}.${s}.${s}`).ok, false, 'four parts');
+  assert.equal(parseToken(`${h}.${p}.`).ok, false, 'an empty part');
+  assert.equal(parseToken(`${h}.${p}.${'A'.repeat(MAX_PART)}`).ok, true, 'a part of exactly MAX_PART characters is fine');
+  assert.equal(parseToken(`${h}.${p}.${'A'.repeat(MAX_PART + 1)}`).ok, false, 'one character over');
+  assert.equal(parseToken(`${h}.${p}.${s}`.replace(/.$/, '+')).ok, false, 'not base64url');
 });

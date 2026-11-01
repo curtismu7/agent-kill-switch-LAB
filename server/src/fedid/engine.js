@@ -13,7 +13,7 @@ import { fingerprint, parseToken, signToken, signatureValid } from './jwt.js';
 import { maskText } from './mask.js';
 import {
   ACCESS_KEYS, ALGS_ALLOWED, APPS, DEFAULT_LIFETIME_SEC, IDENTITIES, ISSUERS, KEYSET_REFRESH_SEC, LOG_KEEP, MAX_LIFETIME_SEC,
-  REASON_STATUS, REQUEST_CAP, SERVICES, VIAS,
+  ISSUER_CAP, REASON_STATUS, REQUEST_CAP, SERVICES, VIAS,
 } from './tables.js';
 
 export const MAX_ADVANCE_TOTAL_SEC = 30 * 24 * 3600; // lab-invented: the virtual clock may move at most 30 days between Resets
@@ -102,10 +102,10 @@ export function summarize(log, revokes) {
 // ---- the engine ----------------------------------------------------------------------------------------------------------------
 export function createFedId({ audit, startMs = () => Date.now(), signing = 'rsa' } = {}) {
   if (signing !== 'rsa' && signing !== 'mock') throw new RangeError('signing must be "rsa" or "mock"');
-  let t0; let nowMs; let advancedSec; let n; let jtiN; let outage; let log; let revokes; let records; let held; let fetchedAt;
+  let t0; let nowMs; let advancedSec; let n; let jtiN; let outage; let issuerChanges; let log; let revokes; let records; let held; let fetchedAt;
 
   function init() {
-    t0 = startMs(); nowMs = t0; advancedSec = 0; n = 0; jtiN = 0; outage = false; log = []; revokes = {}; held = new Map();
+    t0 = startMs(); nowMs = t0; advancedSec = 0; n = 0; jtiN = 0; outage = false; issuerChanges = 0; log = []; revokes = {}; held = new Map();
     records = Object.fromEntries(Object.keys(IDENTITIES).map((id) => [id, { state: 'active', revokedAt: null, revokedBy: null, note: null }]));
     // Deck: "The issuer's key set is validated when the access key is created": the gateway starts with a fetched, known-good set per issuer.
     fetchedAt = Object.fromEntries(Object.keys(ISSUERS).map((id) => [id, nowMs]));
@@ -189,7 +189,7 @@ export function createFedId({ audit, startMs = () => Date.now(), signing = 'rsa'
   function stateOf() {
     const sum = summarize(log, revokes);
     return {
-      now: iso(nowMs), startedAt: iso(t0), advancedSec, signing, requests: n, requestCap: REQUEST_CAP, issuerOutage: outage,
+      now: iso(nowMs), startedAt: iso(t0), advancedSec, signing, requests: n, requestCap: REQUEST_CAP, issuerOutage: outage, issuerChanges, issuerCap: ISSUER_CAP,
       keySets: Object.fromEntries(Object.keys(ISSUERS).map((id) => [id, { ageSec: Math.floor((nowMs - fetchedAt[id]) / 1000), refreshEverySec: KEYSET_REFRESH_SEC }])),
       identities: Object.values(IDENTITIES).map((i) => ({
         id: i.id, label: i.label, platform: i.platform, issuer: ISSUERS[i.issuer].iss, subject: i.subject, audience: i.audience, scopes: [...i.scopes], maxLifetimeSec: i.maxLifetimeSec,
@@ -226,8 +226,10 @@ export function createFedId({ audit, startMs = () => Date.now(), signing = 'rsa'
       const p = parseRevokeBody(body);
       if (p.error) return { ok: false, status: 400, error: 'bad_request', message: p.error };
       const { workload } = p.value;
-      if (records[workload].state !== 'active') return { ok: false, status: 409, error: 'already_revoked', message: 'that identity is already revoked' };
+      // The operator name is judged AFTER masking: a name made only of invisible characters is empty.
       const operator = maskText(p.value.operator, 40);
+      if (operator.trim() === '') return { ok: false, status: 400, error: 'bad_request', message: FIELD_ERROR };
+      if (records[workload].state !== 'active') return { ok: false, status: 409, error: 'already_revoked', message: 'that identity is already revoked' };
       const note = maskText(p.value.reason, 200);
       Object.assign(records[workload], { state: 'revoked', revokedAt: nowMs, revokedBy: operator, note });
       revokes[workload] = { n };
@@ -237,7 +239,12 @@ export function createFedId({ audit, startMs = () => Date.now(), signing = 'rsa'
     setIssuer(body) {
       const p = parseIssuerBody(body);
       if (p.error) return { ok: false, status: 400, error: 'bad_request', message: p.error };
-      if (outage !== p.value.outage) { outage = p.value.outage; audit.append('fedid_issuer', null, { outage }); }
+      // Only a real change counts and is audited. Changes are capped per session (the whole request is refused, like the request cap), so a loop of
+      // toggles cannot fill the audit trail and push the revoke entry out of it.
+      if (outage !== p.value.outage) {
+        if (issuerChanges >= ISSUER_CAP) return { ok: false, status: 429, error: 'issuer_cap', message: `this session has changed the issuer ${ISSUER_CAP} times: Reset to start again` };
+        issuerChanges += 1; outage = p.value.outage; audit.append('fedid_issuer', null, { outage });
+      }
       return { ok: true };
     },
     advance(body) {

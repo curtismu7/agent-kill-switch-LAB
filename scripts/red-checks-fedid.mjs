@@ -11,6 +11,10 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const E = 'server/src/fedid/engine.js';
 const M = 'server/src/fedid/mask.js';
+const J = 'server/src/fedid/jwt.js';
+const T = 'server/src/fedid/tables.js';
+const W = 'server/src/workspaces.js';
+const WS = ['test/workspaces.test.js'];
 const CORE = ['test/fedid.test.js', 'test/fedid-mock.test.js', 'test/fedid-api.test.js'];
 const MASK = ['test/fedid-masking.test.js', '--test-name-pattern=maskText'];
 // [name, file (from the repo root), from, to, tests]. A server mutant runs `node --test` on its tests, a web mutant runs vitest on the page tests.
@@ -57,6 +61,30 @@ const MUTATIONS = [
   ['masking: URL userinfo kept', M, '    .replace(USERINFO, `://${MARK}@`)\n', '', MASK],
   ['masking: truncates before it masks', M, 'const unseen = value.length > HARD_LIMIT ? value.slice(0, HARD_LIMIT) : value;', 'const unseen = value.slice(0, max);', MASK],
   ['masking: short prefixed tokens kept', M, '    .replace(PREFIXED, MARK)\n', '', MASK],
+  // ---- the review of 2026-11-01: the mutants that survived, and the fixes ----
+  ['summary: the last request before the revoke is counted as after it', E, 'mine.filter((r) => r.n > rec.n)', 'mine.filter((r) => r.n >= rec.n)', CORE],
+  ["tokenStillValid ignores the binding check", E, "['alg', 'signature', 'lifetime', 'expiry', 'binding'].every", "['alg', 'signature', 'lifetime', 'expiry'].every", CORE],
+  ['an expired token is answered 403, not 401', T, 'token_expired: 401,', 'token_expired: 403,', CORE],
+  ['the audit is written on every redundant issuer toggle', E, "audit.append('fedid_issuer', null, { outage });\n      }", "audit.append('fedid_issuer', null, { outage });\n      } else audit.append('fedid_issuer', null, { outage });", CORE],
+  ['lifetime: exp before iat is accepted', E, 'claims.exp > claims.iat && ', '', CORE],
+  ['parseToken: the part length bound is removed', J, 'p.length > MAX_PART || ', '', CORE],
+  ['parseToken: the part count is not checked', J, 'parts.length !== 3 || ', '', CORE],
+  ['the key principal ignores whether the key exists', E, "(identity && key ? rec.state === 'active' : false)", "(identity ? rec.state === 'active' : false)", CORE],
+  ['masking: percent-decoding once, not twice', M, 'i < 2 && out.includes', 'i < 1 && out.includes', MASK],
+  ['masking: the long-blob rule removed', M, '\n    .replace(BLOB, MARK);', ';', MASK],
+  ['masking: the Authorization-line rule removed', M, '    .replace(AUTH_LINE, MARK)\n', '', MASK],
+  ['masking: the HARD_LIMIT slice removed', M, 'const unseen = value.length > HARD_LIMIT ? value.slice(0, HARD_LIMIT) : value;', 'const unseen = value;', MASK],
+  ['the stored operator is cut at 4000, not 40', E, 'maskText(p.value.operator, 40)', 'maskText(p.value.operator, 4000)', CORE],
+  ['the stored reason is cut at 4000, not 200', E, 'maskText(p.value.reason, 200)', 'maskText(p.value.reason, 4000)', CORE],
+  ['issuer cap removed', E, 'if (issuerChanges >= ISSUER_CAP)', 'if (false)', CORE],
+  ['issuer cap off by one', E, 'issuerChanges >= ISSUER_CAP', 'issuerChanges > ISSUER_CAP', CORE],
+  ['the operator is judged before masking only (an invisible-only name is accepted)', E, "if (operator.trim() === '') return", 'if (false) return', CORE],
+  ['masking: whitespace controls are deleted instead of turned into a space', M, ".replace(SPACE_LIKE, ' ')", ".replace(SPACE_LIKE, '')", MASK],
+  ['masking: "token is X" not caught', M, 'tokens?\\s+is)', 'tokens?\\s+iz)', MASK],
+  ['masking: a quoted value is cut at its first word', M, '(?:"[^"]{0,200}"|', '(?:', MASK],
+  ['workspaces: the oldest workspace is evicted at the cap', W, 'if (live.size >= cap) return null;', 'if (live.size >= cap) live.delete(live.keys().next().value);', WS],
+  ['workspaces: an idle workspace is never dropped', W, 't - v.at > idleMs', 'false', WS],
+  ['workspaces: a recently used workspace is dropped', W, 't - v.at > idleMs', 't - v.at >= 0', WS],
   // ---- the page (vitest on web/src/test/fedid.test.jsx) ----
   ['page: workload field not sent', 'web/src/components/FedIdTab.jsx', 'workload: form.workload, service: form.service, via: form.via,', 'workload: "fi-billing-agent", service: form.service, via: form.via,', 'web'],
   ['page: service field not sent', 'web/src/components/FedIdTab.jsx', 'service: form.service, via: form.via, lifetimeSec: form.lifetime', 'service: "mcp", via: form.via, lifetimeSec: form.lifetime', 'web'],

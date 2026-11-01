@@ -16,7 +16,7 @@ import {
 } from './facts.js';
 import { loadMock } from './mock.js';
 import { STORY } from './story.js';
-import { ACCESS_KEYS, APPS, DEFAULT_LIFETIME_SEC, IDENTITIES, ISSUERS, KEYSET_REFRESH_SEC, MAX_LIFETIME_SEC, REQUEST_CAP, SERVICES, VIAS } from './tables.js';
+import { ACCESS_KEYS, APPS, DEFAULT_LIFETIME_SEC, IDENTITIES, ISSUER_CAP, ISSUERS, KEYSET_REFRESH_SEC, MAX_LIFETIME_SEC, REQUEST_CAP, SERVICES, VIAS } from './tables.js';
 import { MAX_ADVANCE_TOTAL_SEC } from './engine.js';
 
 const MOCK = loadMock();
@@ -28,7 +28,7 @@ export const catalogue = () => ({
   story: STORY.map((s, i) => ({ step: i + 1, ...s })),
   services: SERVICES, vias: VIAS, apps: Object.values(APPS), accessKeys: Object.values(ACCESS_KEYS),
   identities: Object.values(IDENTITIES).map((i) => ({ id: i.id, label: i.label, platform: i.platform, issuer: ISSUERS[i.issuer].iss, subject: i.subject, audience: i.audience, scopes: i.scopes })),
-  limits: { defaultLifetimeSec: DEFAULT_LIFETIME_SEC, maxLifetimeSec: MAX_LIFETIME_SEC, keySetRefreshSec: KEYSET_REFRESH_SEC, requestCap: REQUEST_CAP, maxAdvanceTotalSec: MAX_ADVANCE_TOTAL_SEC, maxAdvanceSec: 86_400 },
+  limits: { defaultLifetimeSec: DEFAULT_LIFETIME_SEC, maxLifetimeSec: MAX_LIFETIME_SEC, keySetRefreshSec: KEYSET_REFRESH_SEC, requestCap: REQUEST_CAP, issuerCap: ISSUER_CAP, maxAdvanceTotalSec: MAX_ADVANCE_TOTAL_SEC, maxAdvanceSec: 86_400 },
 });
 
 export function fedidRoutes(runtime) {

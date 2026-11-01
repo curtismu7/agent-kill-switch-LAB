@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { startHttpServer } from '../src/app.js';
 import { createClock } from '../src/clock.js';
-import { REQUEST_CAP } from '../src/fedid/tables.js';
+import { ISSUER_CAP, REQUEST_CAP } from '../src/fedid/tables.js';
 import { createRuntime } from '../src/runtime.js';
 import { T0, freePort, request } from './helpers.js';
 import { guardNetwork } from './netguard.js';
@@ -164,4 +164,32 @@ test('NETGUARD: the whole section makes zero non-loopback connections', async (t
   // the guard itself works: a non-loopback fetch is recorded and refused
   await assert.rejects(fetch('http://203.0.113.9/'), /network blocked/);
   assert.deepEqual(guard.attempts, ['fetch:203.0.113.9']);
+});
+
+test('an operator made only of invisible characters is refused 400 (judged after masking), and the identity stays active', async (t) => {
+  const { post, get } = await boot(t);
+  for (const operator of ['\u200b\u200b', '\u2060\ufeff']) {
+    const r = await post('/revoke', { workload: B, operator });
+    assert.deepEqual([r.status, r.json.error], [400, 'bad_request']);
+  }
+  const st = (await get('/state')).json.state.identities.find((i) => i.id === B);
+  assert.deepEqual([st.state, st.revokedBy], ['active', null]);
+});
+
+test('ISSUER CAP over HTTP: the request past the cap is 429 issuer_cap, the revoke stays in the audit trail, Reset lifts the cap', async (t) => {
+  const { post, get, call } = await boot(t);
+  assert.equal((await post('/revoke', { workload: B, operator: 'ops', reason: 'x' })).status, 200);
+  let outage = false;
+  for (let i = 0; i < ISSUER_CAP; i += 1) { outage = !outage; assert.equal((await post('/issuer', { outage })).status, 200, `change ${i + 1}`); }
+  const over = await post('/issuer', { outage: !outage });
+  assert.deepEqual([over.status, over.json.error], [429, 'issuer_cap']);
+  assert.equal((await get('/state')).json.state.issuerOutage, outage);
+  assert.equal((await post('/issuer', { outage })).status, 200, 'repeating the current state is not a change');
+  const audit = (await call('GET', '/api/audit?limit=500')).json;
+  assert.equal(audit.entries.some((e) => e.type === 'fedid_revoke'), true);
+  assert.equal(audit.entries.filter((e) => e.type === 'fedid_issuer').length, ISSUER_CAP);
+  assert.equal((await call('GET', '/api/audit/verify')).json.evicted, 0);
+  assert.equal((await get('')).json.limits.issuerCap, ISSUER_CAP);
+  await call('POST', '/api/reset', { body: {} });
+  assert.equal((await post('/issuer', { outage: true })).status, 200);
 });

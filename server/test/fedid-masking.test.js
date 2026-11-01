@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { maskText } from '../src/fedid/mask.js';
+import { HARD_LIMIT, maskText } from '../src/fedid/mask.js';
 import { freePort, request } from './helpers.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -32,6 +32,17 @@ const SECRETS = [
   { name: 'fullwidth-NFKC', typed: 'ｓｋ－live-ZXCVBN4567poiu', core: 'ZXCVBN4567poiu' },
   { name: 'percent-encoded', typed: '%73k-live-PERCNT1234abcd', core: 'PERCNT1234abcd' },
   { name: 'percent-encoded-assignment', typed: 'password%3Dhunter9zzz', core: 'hunter9zzz' },
+  // whitespace controls between the words (deleting them used to glue "password is" and the value together and hide the shape)
+  { name: 'password-newline', typed: 'password is\nhunter2zzz', core: 'hunter2zzz' },
+  { name: 'password-tabs', typed: 'password\tis\thunter2zzz', core: 'hunter2zzz' },
+  { name: 'password-crlf', typed: 'my pw:\r\nhunter3zzz', core: 'hunter3zzz' },
+  { name: 'bearer-tab', typed: 'Bearer\tabcdef123456', core: 'abcdef123456' },
+  { name: 'token-is', typed: 'the token is hunter4zzz', core: 'hunter4zzz' },
+  { name: 'quoted-passphrase', typed: 'password is "correct horse battery staple"', core: 'battery staple' },
+  { name: 'single-quoted-passphrase', typed: "secret = 'violet zebra lantern quiet'", core: 'lantern quiet' },
+  { name: 'double-percent-encoded', typed: '%2573k-live-DOUBLEPC1234abcd', core: 'DOUBLEPC1234abcd' },
+  { name: 'unprefixed-blob', typed: ['Zm9vYmFy', 'YmF6cXV4', 'MTIzNDU2', 'Nzg5MGFi', 'Y2RlZg'].join(''), core: ['Zm9vYmFy', 'YmF6cXV4', 'MTIzNDU2'].join('') },
+  { name: 'authorization-without-colon', typed: 'Authorization Digest realm=x nonce=zebra99', core: 'zebra99' },
   { name: 'secret-in-filler', typed: `${'filler '.repeat(120)}sk-live-AFTERFILLER99xx`, core: 'AFTERFILLER99xx' },
 ];
 const ascii = (s) => s.replace(/[^\x20-\x7e]/g, '');
@@ -134,5 +145,36 @@ test('maskText: ordinary text is left alone, other types become the empty string
   for (const v of [undefined, null, 7, {}, [], true]) assert.equal(maskText(v), '');
   assert.ok(maskText('a'.repeat(5000), 40).length <= 41);
   assert.equal(maskText(`${ZW}${ZW}`, 40), '');
-  assert.equal(maskText('line1\nline2\ttab', 40), 'line1line2tab');
+  assert.equal(maskText('line1\nline2\ttab', 40), 'line1 line2 tab', 'whitespace controls become a space, they are not deleted');
+});
+
+test('maskText: every whitespace control between the words of a secret shape still lets the shape be seen', () => {
+  for (const ws of ['\n', '\t', '\r\n', '\u000B', '\u000C', '\u0085', '\u2028', '\u2029', ' \n \t ']) {
+    for (const [typed, core] of [[`password is${ws}hunter2zzz`, 'hunter2zzz'], [`my pw:${ws}hunter2zzz`, 'hunter2zzz'], [`Bearer${ws}abcdef123456`, 'abcdef123456'], [`token is${ws}hunter2zzz`, 'hunter2zzz'], [`password${ws}is${ws}"two words"`, 'two words']]) {
+      assert.equal(maskText(typed, 200).includes(core), false, JSON.stringify(typed));
+    }
+  }
+  assert.equal(maskText(`${ZW}pass${ZW}word${ZW} is${ZW}\n${ZW}hunter2zzz`, 200).includes('hunter2zzz'), false, 'invisible characters and a newline together');
+});
+
+test('maskText: "token is X" and a quoted value up to its closing quote are masked; a sentence about a token that was revoked is not', () => {
+  assert.equal(maskText('the token is hunter2zzz', 200), 'the [REDACTED]');
+  assert.equal(maskText('password is "correct horse battery staple" ok', 200), '[REDACTED] ok', 'the whole quoted passphrase, not just its first word');
+  assert.equal(maskText("pw = 'a b c' z", 200), '[REDACTED] z');
+  assert.equal(maskText('the token was revoked at noon', 200), 'the token was revoked at noon');
+  assert.equal(maskText('the tokens are fine', 200), 'the tokens are fine');
+  // an unclosed quote is bounded (it cannot make the pattern rescan the rest of the text from every start); the unquoted word is still masked
+  assert.equal(maskText('password is "unclosed zebra', 200), '[REDACTED] zebra');
+  assert.equal(maskText('password is "unclosed zebra', 200).includes('unclosed'), false);
+});
+
+test('maskText: only the first HARD_LIMIT characters are looked at; the answer is built from them alone', () => {
+  const long = 'ab '.repeat(HARD_LIMIT); // 3 * HARD_LIMIT characters, no secret shapes
+  assert.ok(maskText(long, HARD_LIMIT * 10).length <= HARD_LIMIT, 'text beyond the limit is never carried into the answer');
+});
+
+test('maskText: an Authorization header without a colon is masked to the end of its line', () => {
+  const m = maskText('Authorization Digest realm=x nonce=zebra99', 200);
+  assert.equal(m.includes('zebra99'), false, m);
+  assert.equal(maskText('Authorization=zebra99', 200).includes('zebra99'), false);
 });

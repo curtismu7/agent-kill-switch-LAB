@@ -137,7 +137,12 @@ export function createApp({ runtime = null, workspaces = null, health = createHe
   // The health probe is shared and reads no workspace state, so it does not create one.
   app.use('/api/health', health.router);
   const ws = runtime ? null : (workspaces || createWorkspaces());
-  app.use('/api', (req, res, next) => routerFor(runtime ?? ws.resolve(req, res))(req, res, next));
+  app.use('/api', (req, res, next) => {
+    const rt = runtime ?? ws.resolve(req, res);
+    // The registry is full of other visitors' workspaces: refuse rather than evict one of them (an eviction would silently undo their revoke).
+    if (rt === null) return res.status(503).set('Retry-After', '600').json({ error: 'too_many_workspaces', message: 'this server is holding as many visitor workspaces as it allows: try again later' });
+    return routerFor(rt)(req, res, next);
+  });
   app.use((_req, res) => bad(res, 'no such endpoint', 404));
   app.use((err, _req, res, _next) => (err instanceof URIError || err.status === 400 ? bad(res, 'malformed request') : res.status(500).json({ error: 'server_error' })));
   return app;
