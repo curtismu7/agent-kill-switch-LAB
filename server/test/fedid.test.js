@@ -217,9 +217,9 @@ test('input types: every field is checked by type and by table lookup; hostile n
   ]) assert.ok(parseRequestBody(bad).error, JSON.stringify(bad));
   for (const bad of [null, {}, { outage: 'true' }, { outage: 1 }, { outage: true, x: 1 }, []]) assert.ok(parseIssuerBody(bad).error);
   assert.ok(parseAdvanceBody({ seconds: 'x' }).error);
-  assert.ok(parseRevokeBody({ workload: B, operator: 'x'.repeat(201) }).error);
-  assert.ok(parseRevokeBody({ workload: B, operator: 'x', reason: 'y'.repeat(1001) }).error);
-  assert.ok(parseRevokeBody({ workload: B, operator: 'x'.repeat(200), reason: 'y'.repeat(1000) }).value);
+  assert.ok(parseRevokeBody({ workload: B, operator: 'x'.repeat(41) }).error);
+  assert.ok(parseRevokeBody({ workload: B, operator: 'x', reason: 'y'.repeat(201) }).error);
+  assert.ok(parseRevokeBody({ workload: B, operator: 'x'.repeat(40), reason: 'y'.repeat(200) }).value);
   const { e } = make();
   assert.equal(e.request({ workload: N, service: 'mcp', via: 'key' }).status, 400, 'the nightly job has no access key');
 });
@@ -263,14 +263,17 @@ test('a revoke is judged on the masked operator: a name made only of invisible c
   assert.equal(e.state().identities.find((i) => i.id === B).revokedBy, 'ops');
 });
 
-test('the stored operator is cut at 40 characters and the stored reason at 200, after masking', () => {
+test('an operator of 40 characters and a reason of 200 are accepted whole; one more is refused whole, and nothing is ever cut', () => {
   const { e, audit, revoke } = make();
-  assert.equal(revoke(B, 'ab '.repeat(60).trim(), 'cd '.repeat(300).trim()).ok, true);
+  const op = 'ab '.repeat(13).trim().padEnd(40, 'z'); const why = 'cd '.repeat(66).trim().padEnd(200, 'z');
+  assert.deepEqual([op.length, why.length], [40, 200]);
+  assert.deepEqual([revoke(B, `${op}z`, why).status, revoke(B, op, `${why}z`).status], [400, 400], '41 and 201 are refused');
+  assert.equal(e.state().identities.find((i) => i.id === B).state, 'active', 'a refused revoke changes nothing');
+  assert.equal(revoke(B, op, why).ok, true);
   const id = e.state().identities.find((i) => i.id === B);
-  assert.equal(id.revokedBy.length, 41, '40 characters and the ellipsis');
-  assert.equal(id.note.length, 201, '200 characters and the ellipsis');
+  assert.deepEqual([id.revokedBy, id.note], [op, why], 'stored exactly as typed: no ellipsis, no cut');
   const a = audit.list().find((x) => x.type === 'fedid_revoke');
-  assert.deepEqual([a.data.operator.length, a.data.note.length], [41, 201]);
+  assert.deepEqual([a.data.operator, a.data.note], [op, why]);
 });
 
 test('issuer outage: a real change is audited once; setting the state it already has is accepted and audited NOT at all, and does not count', () => {

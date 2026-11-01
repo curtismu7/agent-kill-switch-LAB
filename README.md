@@ -85,7 +85,7 @@ No admin or worker credential is used anywhere.
 ## Ports, and what to do if the port is taken
 
 Ports: Agent Kill Switch listens on 6550 (set with KILL_SWITCH_PORT, default 6550).
-Port range for this app: 6550-6599. 6551-6559 are reserved for stubs (none are opened), the Vite dev server uses 6560 (VITE_PORT), the e2e runs use 6570 and 6571 (E2E_PORT, E2E_FEDID_PORT), the Federated Identity tests 6572-6576, the other tests 6580-6599. The Docker host port is fixed at 6550 (no variable).
+Port range for this app: 6550-6599. 6551-6559 are reserved for stubs (none are opened), the Vite dev server uses 6560 (VITE_PORT), the e2e runs use 6570 and 6571 (E2E_PORT, E2E_FEDID_PORT), the Federated Identity tests 6572-6576, the masking-api and cast tests 6577-6579, the other tests 6580-6599. The Docker host port is fixed at 6550 (no variable).
 
 If the port is taken:
 1. Find what is using it:
@@ -106,7 +106,19 @@ If the port is taken:
 
 Caps: 300 requests and 40 issuer outage changes per Live session (429, nothing evicted; Reset starts again), the virtual clock may move 30 days at most, request bodies are 2 KB. At most 200 visitor workspaces are held: a new visitor past that gets a JSON 503 and no existing workspace is evicted (an idle one expires after the 8 h cookie lifetime).
 
-**Masking is a heuristic.** The text typed into the operator and reason fields is masked for the secret shapes listed in `docs/safety.md` before it is stored or shown; a secret in a shape not on that list can get through. Do not type real secrets.
+**Masking is a heuristic.** The operator name (at most 40 characters) and the reason (at most 200) typed on the Kill switch tab AND on the Federated Identity tab go through one masker (`server/src/mask.js`) at write time, so the audit trail and the event feed (both of which survive Reset) hold only the masked text; the shapes it knows are listed in `docs/safety.md`. A secret in a shape not on that list can get through. Do not type real secrets. What it still misses:
+
+* a bare word with no keyword and no recognisable shape (`hunter2xyz` on its own);
+* look-alike letters from another alphabet (a Cyrillic `a` or a Greek `o` inside `password` is not folded to Latin by NFKC);
+* a keyword split by an ordinary space or another letter (`pass word=x`);
+* a digit-free password after a keyword and a plain space (`password correcthorse`): see the tradeoff below;
+* a secret that is itself an ordinary sentence.
+
+It over-masks on purpose: `author: Bob` is masked (`auth` is a keyword), `authorization is required` is masked to the end of the line, `token 2026-11-01` is masked (a token after a keyword, 6 or more characters, with a digit), `the key is 2026-stored` is masked.
+
+**False-positive tradeoff.** After a strong keyword (`password`, `pw`, `token`, `secret`, `api key`, ...) and a plain space, only a quoted value or a word of 6 or more characters that contains a digit is taken for the value: `password hunter2xyz` is masked, `password reset`, `token bucket refilled` and `the key is stored in the vault` stay readable (pinned by a test). With `:`/`=` (`password: x`, `pw=x`) or `is`/`was`/`are` (`my password is x`; `the token is x`) any value is masked. Control characters (C0 and C1, except tab, line feed and carriage return) are deleted before matching, so `p<U+0001>assword: x` and `pass<U+0085>word=x` are caught; the text is also read once with those controls as spaces and the reading that masks more is kept.
+
+**HTTP behaviour changes in this release.** A name over 40 characters or a reason over 200 is refused whole with 400 (on `/api/kill`, `/api/unrevoke` and `/api/fedid/revoke`; the Federated Identity revoke used to accept 200 and 1,000 and silently cut to 40 and 200). A wrong method on any known route (`GET /api/kill`, `POST /api/state`, `DELETE /api/state`, ...) is 405 with an `Allow` header, never a 404. A missing file or path is a JSON 404 that does not repeat the path (never Express's HTML `Cannot POST /...`); an unexpected error is `{"error":"server_error"}`. An unrevoke whose name is empty after masking (only invisible or control characters) is refused 400. There are no workspace-id inputs to refuse: the workspace id is a server-issued 32-hex cookie, a bad cookie is ignored and replaced, and it is never echoed.
 
 ## Health, doctor and reset
 
@@ -186,9 +198,9 @@ It publishes `127.0.0.1:6550` only (OrbStack, never Docker Desktop). The host po
 npm test
 ```
 
-On Node 26: 188 server tests (node:test), 49 web tests (vitest) and 56 script tests (55 run and 1 is skipped when the Learning Hub repo is not beside the clone), exit 0. The tests use a glob (`node --test test/*.test.js`), a fake clock and no sleeps, and no wall-clock assertions. `npm run e2e` reports 59 PASS for the Kill switch tab and `npm run e2e-fedid` all checks passed for the new tab.
+On Node 26: 204 server tests (node:test), 50 web tests (vitest) and 56 script tests (55 run and 1 is skipped when the Learning Hub repo is not beside the clone), exit 0. The tests use a glob (`node --test test/*.test.js`), a fake clock and no sleeps, and no wall-clock assertions. `npm run e2e` reports 59 PASS for the Kill switch tab and `npm run e2e-fedid` all checks passed for the new tab.
 
-Red checks (each mutation changes one behaviour in a copy and requires the tests to fail): `npm run red-checks` reports all 63 mutations caught and `npm run red-checks-web` all 23 UI mutations caught. Federated Identity red checks: all 89 mutations caught (`npm run red-checks-fedid`; every editable field has a mutant, on the server and in the page). `scripts/docs.test.mjs` and `scripts/fedid-docs.test.mjs` pin these counts to the scripts, so they cannot drift silently.
+Red checks (each mutation changes one behaviour in a copy and requires the tests to fail): `npm run red-checks` reports all 63 mutations caught and `npm run red-checks-web` all 23 UI mutations caught. Federated Identity red checks: all 132 mutations caught (`npm run red-checks-fedid`; every editable field has a mutant, on the server and in the page). `scripts/docs.test.mjs` and `scripts/fedid-docs.test.mjs` pin these counts to the scripts, so they cannot drift silently.
 
 ### What the mutation checks cover, and what is not verified
 

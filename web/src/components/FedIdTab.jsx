@@ -185,14 +185,14 @@ export default function FedIdTab({ mode, setMode, hosted, presenter, setPresente
                 <select value={form.target} onChange={set("target")} data-testid="fedid-target">{cat.identities.map((i) => <option key={i.id} value={i.id}>{i.id}</option>)}</select>
               </label>
               <label>Operator
-                <input type="text" maxLength={200} value={form.operator} onChange={set("operator")} data-testid="fedid-operator" autoComplete="off" />
+                <input type="text" maxLength={40} value={form.operator} onChange={set("operator")} data-testid="fedid-operator" autoComplete="off" />
               </label>
               <label>Reason
                 <input type="text" maxLength={200} value={form.reason} onChange={set("reason")} data-testid="fedid-reason" autoComplete="off" />
               </label>
               <button type="button" className="btn kill" onClick={onRevoke} disabled={busy || playing || form.operator.trim() === ""} data-testid="fedid-revoke">Revoke identity</button>
             </div>
-            <p className="hint">The operator name and reason are masked for secret shapes before they are stored (a heuristic: do not type real secrets).</p>
+            <p className="hint">The operator name (up to 40 characters) and reason (up to 200) are masked for secret shapes before they are stored (a heuristic: do not type real secrets).</p>
             <div className="fedid-form">
               <label className="check"><input type="checkbox" checked={live.issuerOutage} onChange={(e) => onOutage(e.target.checked)} disabled={busy || playing} data-testid="fedid-outage" /> Issuer outage (the gateway cannot refresh its key set)</label>
               <label>Move time by (s)

@@ -28,7 +28,8 @@ Everything runs in one Node process. There is no tenant, no model, no network be
 | `audit.js` | Append-only, HMAC hash-chained, capped (2000). Records scenario starts, trips, kills, unrevokes, auto-resets and resets. |
 | `app.js`, `safety.js` | Express app, Host/Origin/credential guards, strict body validation. |
 | `health.js`, `doctor.js` | `demo-health/1` and the preflight checks both are built from. |
-| `redaction.js`, `sanitize.js` | Secret-looking text removed, hidden/control characters shown as `[U+XXXX]`, before anything is stored. |
+| `mask.js` | The one masker for typed text (operator name, reason; heuristic), run at write time before the audit trail and event feed see the text. Controls deleted, NFKC, percent-decode x3, keyword/userinfo/JSON/token shapes. |
+| `redaction.js`, `sanitize.js` | Secret-looking text removed (the last net inside `mask.js`, and the event feed), hidden/control characters shown as `[U+XXXX]`, before anything is stored. |
 
 ## State machine (per agent)
 
@@ -82,7 +83,6 @@ A workload presents the token its platform issued; the gateway verifies it on ev
 | `tables.js` | Frozen tables: two issuers, two identities, one access key, three backend credentials, the caps. All names invented, all hosts `.example`. |
 | `jwt.js` | Real RS256 signing and verification with `node:crypto` and throwaway RSA keys (EC key generation is avoided). The Mock engine uses a fixed marker instead. |
 | `engine.js` | The engine: platform token minting (real or mock), the gateway's checks, key-set cache (15-minute refresh, last known good through an outage), revoke, issuer outage, virtual time, request cap, `summarize()` (the computed rows both views show). All synchronous, so check-and-change is atomic. |
-| `mask.js` | Masking for typed text (heuristic). |
 | `story.js`, `mock.js` | The 18-step story as data, and the Mock table generated from it (`mockTable.json`, written by `npm run fedid-mock`, drift-tested). |
 | `facts.js` | Every claim with its tag; the page, the talk track and the content pack are generated from it. |
 | `diagram.js`, `diagrams/fedid-revoke.json`, `diagramStudioValidate.js` | The diagram as diagram-studio/1 data, validated with a copy of the studio's validator. |

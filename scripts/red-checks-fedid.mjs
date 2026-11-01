@@ -10,7 +10,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const E = 'server/src/fedid/engine.js';
-const M = 'server/src/fedid/mask.js';
+const M = 'server/src/mask.js';
+const APP = 'server/src/app.js';
+const GW = 'server/src/gateway.js';
+const API = ['test/masking-api.test.js'];
 const J = 'server/src/fedid/jwt.js';
 const T = 'server/src/fedid/tables.js';
 const W = 'server/src/workspaces.js';
@@ -18,7 +21,7 @@ const WS = ['test/workspaces.test.js'];
 const CAST = 'server/src/cast.js';
 const CT = ['test/cast.test.js'];
 const CORE = ['test/fedid.test.js', 'test/fedid-mock.test.js', 'test/fedid-api.test.js'];
-const MASK = ['test/fedid-masking.test.js', '--test-name-pattern=maskText'];
+const MASK = ['test/fedid-masking.test.js', '--test-name-pattern=maskText|class [ABCD]|tab, LF and CR'];
 // [name, file (from the repo root), from, to, tests]. A server mutant runs `node --test` on its tests, a web mutant runs vitest on the page tests.
 const MUTATIONS = [
   ['revoke does not change the identity state', E, "Object.assign(records[workload], { state: 'revoked',", "Object.assign(records[workload], { state: 'active',", CORE],
@@ -45,8 +48,6 @@ const MUTATIONS = [
   ['the presents field is ignored', E, "const g = gateway(raw, { service, via });\n      const result", "const g = gateway(raw, { service, via: 'token' });\n      const result", CORE],
   ['the workload field is ignored', E, 'const identity = IDENTITIES[workload];', "const identity = IDENTITIES['fi-billing-agent'];", CORE],
   ['the revoke target field is ignored', E, 'const { workload } = p.value;', "const workload = 'fi-billing-agent';", CORE],
-  ['the operator is stored unmasked', E, 'const operator = maskText(p.value.operator, 40);', 'const operator = String(p.value.operator).slice(0, 40);', ['test/fedid-api.test.js', 'test/fedid.test.js']],
-  ['the reason is stored unmasked', E, 'const note = maskText(p.value.reason, 200);', 'const note = String(p.value.reason).slice(0, 200);', ['test/fedid-api.test.js', 'test/fedid.test.js']],
   ['a second revoke succeeds', E, "if (records[workload].state !== 'active') return {", 'if (false) return {', CORE],
   ['the outage field is ignored', E, 'outage = p.value.outage;', 'outage = false;', CORE],
   ['the advance seconds field is ignored', E, 'nowMs += p.value.seconds * 1000;', 'nowMs += 1000;', CORE],
@@ -56,13 +57,6 @@ const MUTATIONS = [
   ['the HTTP answer is always 200', 'server/src/fedid/routes.js', 'res.status(out.result.status).json({ mode', 'res.status(200).json({ mode', CORE],
   ['the hosted build serves Live', 'server/src/fedid/routes.js', '(runtime.hosted ? hostedRefusal(res) : handler(req, res))', 'handler(req, res)', CORE],
   ['the story timing changed (Mock table drift)', 'server/src/fedid/story.js', "const req = (workload, service, via, say, afterSec = 2) =>", "const req = (workload, service, via, say, afterSec = 3) =>", CORE],
-  ['masking: NFKC fold removed', M, ".normalize('NFKC')", '', MASK],
-  ['masking: invisible characters kept', M, "unseen.replace(STRIP, '')", 'unseen', MASK],
-  ['masking: percent-decoding removed', M, 'let s = percentDecode(', 'let s = (', MASK],
-  ['masking: plain-language secrets not caught', M, '    .replace(SAID, MARK)\n', '', MASK],
-  ['masking: URL userinfo kept', M, '    .replace(USERINFO, `://${MARK}@`)\n', '', MASK],
-  ['masking: truncates before it masks', M, 'const unseen = value.length > HARD_LIMIT ? value.slice(0, HARD_LIMIT) : value;', 'const unseen = value.slice(0, max);', MASK],
-  ['masking: short prefixed tokens kept', M, '    .replace(PREFIXED, MARK)\n', '', MASK],
   // ---- the review of 2026-11-01: the mutants that survived, and the fixes ----
   ['summary: the last request before the revoke is counted as after it', E, 'mine.filter((r) => r.n > rec.n)', 'mine.filter((r) => r.n >= rec.n)', CORE],
   ["tokenStillValid ignores the binding check", E, "['alg', 'signature', 'lifetime', 'expiry', 'binding'].every", "['alg', 'signature', 'lifetime', 'expiry'].every", CORE],
@@ -72,21 +66,73 @@ const MUTATIONS = [
   ['parseToken: the part length bound is removed', J, 'p.length > MAX_PART || ', '', CORE],
   ['parseToken: the part count is not checked', J, 'parts.length !== 3 || ', '', CORE],
   ['the key principal ignores whether the key exists', E, "(identity && key ? rec.state === 'active' : false)", "(identity ? rec.state === 'active' : false)", CORE],
-  ['masking: percent-decoding once, not twice', M, 'i < 2 && out.includes', 'i < 1 && out.includes', MASK],
-  ['masking: the long-blob rule removed', M, '\n    .replace(BLOB, MARK);', ';', MASK],
-  ['masking: the Authorization-line rule removed', M, '    .replace(AUTH_LINE, MARK)\n', '', MASK],
-  ['masking: the HARD_LIMIT slice removed', M, 'const unseen = value.length > HARD_LIMIT ? value.slice(0, HARD_LIMIT) : value;', 'const unseen = value;', MASK],
-  ['the stored operator is cut at 4000, not 40', E, 'maskText(p.value.operator, 40)', 'maskText(p.value.operator, 4000)', CORE],
-  ['the stored reason is cut at 4000, not 200', E, 'maskText(p.value.reason, 200)', 'maskText(p.value.reason, 4000)', CORE],
   ['issuer cap removed', E, 'if (issuerChanges >= ISSUER_CAP)', 'if (false)', CORE],
   ['issuer cap off by one', E, 'issuerChanges >= ISSUER_CAP', 'issuerChanges > ISSUER_CAP', CORE],
   ['the operator is judged before masking only (an invisible-only name is accepted)', E, "if (operator.trim() === '') return", 'if (false) return', CORE],
-  ['masking: whitespace controls are deleted instead of turned into a space', M, ".replace(SPACE_LIKE, ' ')", ".replace(SPACE_LIKE, '')", MASK],
-  ['masking: "token is X" not caught', M, 'tokens?\\s+is)', 'tokens?\\s+iz)', MASK],
-  ['masking: a quoted value is cut at its first word', M, '(?:"[^"]{0,200}"|', '(?:', MASK],
   ['workspaces: the oldest workspace is evicted at the cap', W, 'if (live.size >= cap) return null;', 'if (live.size >= cap) live.delete(live.keys().next().value);', WS],
   ['workspaces: an idle workspace is never dropped', W, 't - v.at > idleMs', 'false', WS],
   ['workspaces: a recently used workspace is dropped', W, 't - v.at > idleMs', 't - v.at >= 0', WS],
+  // ---- the masking sweep of 2026-11-01 (classes A-F): the masker, the older endpoints and the HTTP edges ----
+  ['the operator is stored unmasked', E, 'const operator = maskText(p.value.operator);', 'const operator = String(p.value.operator);', ['test/fedid-api.test.js', 'test/fedid.test.js', ...API]],
+  ['the reason is stored unmasked', E, 'const note = maskText(p.value.reason);', 'const note = String(p.value.reason);', ['test/fedid-api.test.js', 'test/fedid.test.js', ...API]],
+  ['masking: NFKC fold removed', M, ".normalize('NFKC')", '', MASK],
+  ['masking: invisible characters kept', M, ".replace(STRIP, '')", '', MASK],
+  ['masking: C0 controls NUL to BS not deleted', M, 'const CONTROL = /[\\u0000-\\u0008\\u000B', 'const CONTROL = /[\\u0009-\\u0008\\u000B', MASK],
+  ['masking: the C1 range is not deleted (U+0085 survives)', M, '\\u007F-\\u009F]/g; // C0 and C1', '\\u007F-\\u0084]/g; // C0 and C1', MASK],
+  ['masking: DEL is not deleted', M, '\\u000E-\\u001F\\u007F-\\u009F]/g; // C0 and C1', '\\u000E-\\u001F\\u0080-\\u009F]/g; // C0 and C1', MASK],
+  ['masking: U+2028/2029 are deleted, not read as separators', M, ".replace(/[\\u2028\\u2029]/g, ctl)", ".replace(/[\\u2028\\u2029]/g, '')", MASK],
+  ['masking: the deleting reading is dropped (controls always become a space)', M, "const deleted = look(prepare(input, ''));", "const deleted = look(prepare(input, ' '));", MASK],
+  ['masking: the spacing reading is dropped', M, "const spaced = look(prepare(input, ' '));", "const spaced = look(prepare(input, ''));", MASK],
+  ['masking: the spacing reading wins ties', M, 'marks(spaced) > marks(deleted)', 'marks(spaced) >= marks(deleted)', MASK],
+  ['masking: the less-masked reading wins', M, 'marks(spaced) > marks(deleted)', 'marks(spaced) < marks(deleted)', MASK],
+  ['masking: percent-decoding removed', M, 'for (let i = 0; i < 3; i += 1) { const d', 'for (let i = 0; i < 0; i += 1) { const d', MASK],
+  ['masking: percent-decoding twice, not three times', M, 'for (let i = 0; i < 3; i += 1) { const d', 'for (let i = 0; i < 2; i += 1) { const d', MASK],
+  ['masking: tab, LF and CR are not deleted in the second look', M, "[[/[\\t\\n\\r]/g, ''],", "[[/(?!)/g, ''],", MASK],
+  ['masking: a plus sign is not read as a space', M, ", [/\\+/g, ' ']];", ', [/(?!)/g, " "]];', MASK],
+  ['masking: whitespace is not collapsed', M, ".replace(/\\s+/g, ' ').trim()", '.trim()', MASK],
+  ['masking: the result is not trimmed', M, ".replace(/\\s+/g, ' ').trim()", ".replace(/\\s+/g, ' ')", MASK],
+  ['masking: other types are echoed as text', M, "if (typeof input !== 'string') return '';", 'input = String(input);', MASK],
+  ['masking: an input over the raw limit is looked at', M, 'if (input.length > MAX_RAW) return MARK;', '', MASK],
+  ['masking: the raw limit moved by one', M, 'input.length > MAX_RAW', 'input.length >= MAX_RAW', MASK],
+  ['masking: the older redactor net removed', M, 'const detect = (text) => redactText(DETECTORS', 'const detect = (text) => (DETECTORS', MASK],
+  ['masking (B): the keyword + plain space rule needs no digit', M, '(?=[^\\\\s,;&}\\\\])]{0,300}\\\\d)', '', MASK],
+  ['masking (B): the plain-space value may be 5 characters', M, '[^\\\\s,;&}\\\\])]{6,300}`;', '[^\\\\s,;&}\\\\])]{5,300}`;', MASK],
+  ['masking (B): the plain-space value must be 7 characters', M, '[^\\\\s,;&}\\\\])]{6,300}`;', '[^\\\\s,;&}\\\\])]{7,300}`;', MASK],
+  ['masking (B): "api key" is not a strong keyword', M, "const STRONG = 'passphrase|password|passwd|pwd|pw|secret|token|api[-_ ]?key|apikey|", "const STRONG = 'passphrase|password|passwd|pwd|pw|secret|token|apikey|", MASK],
+  ['masking (B): "pw" is not a strong keyword', M, "const STRONG = 'passphrase|password|passwd|pwd|pw|secret|", "const STRONG = 'passphrase|password|passwd|pwd|secret|", MASK],
+  ['masking (B): "secret" is not a strong keyword', M, "pwd|pw|secret|token|api[-_ ]?key|apikey|credential|private[-_ ]?key|access[-_ ]?key|session[-_ ]?id';\nconst QUOTED", "pwd|pw|token|api[-_ ]?key|apikey|credential|private[-_ ]?key|access[-_ ]?key|session[-_ ]?id';\nconst QUOTED", MASK],
+  ['masking (B): the bare "key is" rule removed', M, '(?<![A-Za-z])(keys?)(\\\\s{1,20}is', '(?<![A-Za-z])(keyzz)(\\\\s{1,20}is', MASK],
+  ['masking (B): "token was" is masked like "token is"', M, "(tokens?|private[-_ ]?key|access[-_ ]?key|session[-_ ]?id)(\\\\s{1,20}is\\\\s{1,20})", "(tokens?|private[-_ ]?key|access[-_ ]?key|session[-_ ]?id)(\\\\s{1,20}(?:is|was)\\\\s{1,20})", MASK],
+  ['masking (B): "password is" not caught', M, '(?:is|was|are)\\\\s{1,20})(?:${VALUE})', '(?:iz|waz|arz)\\\\s{1,20})(?:${VALUE})', MASK],
+  ['masking (B): a quoted value is cut at its first word', M, "const QUOTED = '\"[^\"]{0,300}\"|", "const QUOTED = '(?!)|", MASK],
+  ['masking (C): URL userinfo with a scheme kept', M, '  [/(:\\/\\/)[^\\s/?#@]{1,200}@/g, (m, a) => `${a}${MARK}@`],\n', '', MASK],
+  ['masking (C): userinfo without a scheme kept', M, "  [/(?<![\\w.%+-])(?!mailto:)[\\w.%+-]{1,200}:[^\\s/?#@:]{1,200}@(?=[A-Za-z0-9[])/gi, () => `${MARK}@`],\n", '', MASK],
+  ['masking (C): an e-mail address after mailto: is masked', M, '(?!mailto:)', '', MASK],
+  ['masking (D): a JSON-quoted key is not followed', M, '([\\\\w-]{0,30}["\']?\\\\s{0,20}(?:=>|->|[:=])\\\\s{0,20})(?:${VALUE})`, \'gi\'), (m, k, sep) => `${k}${sep}${MARK}`],\n  // plain language', '([\\\\w-]{0,30}\\\\s{0,20}(?:=>|->|[:=])\\\\s{0,20})(?:${VALUE})`, \'gi\'), (m, k, sep) => `${k}${sep}${MARK}`],\n  // plain language', MASK],
+  ['masking: the Authorization rule without a colon removed', M, "  [/\\b(?:proxy-)?authorization\\b[^\\r\\n]{1,300}/gi, (m0) => `${m0.match(/^[A-Za-z-]+/)[0]} ${MARK}`],\n", '', MASK],
+  ['masking: the long-blob rule removed', M, '  [/[A-Za-z0-9+/_=-]{32,}/g, () => MARK],\n', '', MASK],
+  ['masking: the short-prefix rule removed', M, "  [/\\b(?:sk|pk|rk|tok|token|key|secret|pat|ghp|gho|ghu|ghs|github_pat|glpat|xox[a-z]|npm|pypi|hf|api|bearer)[-_][A-Za-z0-9_-]{6,}/gi, () => MARK],\n", '', MASK],
+  ['the gateway stores the operator name unmasked', GW, "const who = (operator) => maskText(operator) || 'operator';", "const who = (operator) => String(operator || 'operator');", API],
+  ['the gateway stores the reason unmasked', GW, 'const note = (n) => maskText(n);', 'const note = (n) => String(n ?? \'\');', API],
+  ['unrevoke judges the name before masking', APP, "maskText(body.operator) === ''", "body.operator.trim() === ''", API],
+  ['kill/unrevoke: the name limit is 41', APP, 'optString(body.operator, 40)', 'optString(body.operator, 41)', API],
+  ['kill/unrevoke: the name limit is 39', APP, 'optString(body.operator, 40)', 'optString(body.operator, 39)', API],
+  ['kill/unrevoke: the reason limit is 201', APP, 'optString(body.reason, 200)', 'optString(body.reason, 201)', API],
+  ['kill/unrevoke: the reason limit is 199', APP, 'optString(body.reason, 200)', 'optString(body.reason, 199)', API],
+  ['fedid revoke: the name limit is 41', E, 'b.operator.length > 40) return', 'b.operator.length > 41) return', [...CORE, ...API]],
+  ['fedid revoke: the reason limit is 201', E, 'b.reason.length > 200)', 'b.reason.length > 201)', [...CORE, ...API]],
+  ['E: GET /api/state answers 404, not 405', APP, "api.route('/state').get((_req, res) => res.json(runtime.snapshot())).all(methods('GET'));", "api.route('/state').get((_req, res) => res.json(runtime.snapshot()));", API],
+  ['E: /api/kill answers 404, not 405, to GET', APP, "res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });\n    }).all(methods('POST'));\n    api.route('/unrevoke')", "res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });\n    });\n    api.route('/unrevoke')", API],
+  ['E: /api/unrevoke answers 404, not 405, to GET', APP, "res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });\n    }).all(methods('POST'));\n\n    api.route('/events')", "res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });\n    });\n\n    api.route('/events')", API],
+  ['E: /api/reset answers 404, not 405', APP, "res.json({ ok: true, mode: runtime.mode });\n    }).all(methods('POST'));", "res.json({ ok: true, mode: runtime.mode });\n    });", API],
+  ['E: /api/events answers 404, not 405', APP, "res.json({ mode: runtime.mode, ...runtime.events.list({ since, limit }) });\n    }).all(methods('GET'));", "res.json({ mode: runtime.mode, ...runtime.events.list({ since, limit }) });\n    });", API],
+  ['E: /api/agents answers 404, not 405', APP, "models: MODELS, tools: TOOLS })).all(methods('GET'));", 'models: MODELS, tools: TOOLS }));', API],
+  ['E: /api/scenarios answers 404, not 405', APP, "scenarios: runtime.scenarios.map(describeScenario) })).all(methods('GET'));", 'scenarios: runtime.scenarios.map(describeScenario) }));', API],
+  ['E: the 405 carries no Allow header', APP, "res.set('Allow', allow).status(405)", 'res.status(405)', API],
+  ['E: the final JSON 404 is removed (Express HTML 404 echoes the path)', APP, "  app.use((_req, res) => bad(res, 'no such endpoint', 404));\n  app.use((err,", '  app.use((err,', API],
+  ['E: the catch-all error handler is removed', APP, "  app.use((err, _req, res, _next) => (err instanceof URIError || err.status === 400 ? bad(res, 'malformed request') : res.status(500).json({ error: 'server_error' })));\n", '', API],
+  ['E: a body that is not JSON echoes it', APP, "if (err.type === 'entity.parse.failed') return bad(res, 'request body is not valid JSON');", "if (err.type === 'entity.parse.failed') return bad(res, `request body is not valid JSON: ${err.body}`);", API],
+  ['E: static dotfiles are served', APP, "dotfiles: 'ignore'", "dotfiles: 'allow'", ['test/static.test.js']],
   // ---- {{cast}} tokens and the vertical packs (rules 10 and 12) ----
   ['cast: any string is accepted as a vertical (a prototype name gets through)', CAST, 'Object.hasOwn(VERTICALS, id) ? id', 'id in VERTICALS ? id', CT],
   ['cast: the Mock table is served with its tokens left in', 'server/src/fedid/routes.js', 'table: fillDeep(MOCK, castFor(req).cast)', 'table: MOCK', CT],

@@ -258,3 +258,16 @@ test("the claims table lists every claim: its row count is the number in its hea
   const ids = rows.map((r) => r.textContent);
   expect(new Set(ids).size).toBe(ids.length);
 });
+
+test("the operator field takes at most 40 characters and the reason at most 200, the same numbers the server enforces (it refuses more, whole)", async () => {
+  engineApi();
+  const user = userEvent.setup();
+  render(<FedIdTab {...props()} />);
+  await screen.findByTestId("fedid-send");
+  expect(screen.getByTestId("fedid-operator")).toHaveAttribute("maxlength", "40");
+  expect(screen.getByTestId("fedid-reason")).toHaveAttribute("maxlength", "200");
+  await user.clear(screen.getByTestId("fedid-operator")); await user.type(screen.getByTestId("fedid-operator"), "o".repeat(41));
+  expect(screen.getByTestId("fedid-operator")).toHaveValue("o".repeat(40));
+  await user.clear(screen.getByTestId("fedid-reason")); await user.type(screen.getByTestId("fedid-reason"), "r".repeat(201));
+  expect(screen.getByTestId("fedid-reason")).toHaveValue("r".repeat(200));
+});

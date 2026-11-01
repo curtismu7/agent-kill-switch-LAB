@@ -38,7 +38,7 @@ test('the README, CLAUDE.md and safety.md document the section: tab, tags, banne
 
 test('the README states the real number of Federated Identity red-check mutations', () => {
   const src = read('scripts/red-checks-fedid.mjs');
-  const n = (src.split('const MUTATIONS = [')[1].split('\n];')[0].match(/^ {2}\['/gm) || []).length;
+  const n = (src.split('const MUTATIONS = [')[1].split('\n];')[0].match(/^ {2}\[['"]/gm) || []).length;
   assert.ok(n >= 20);
   assert.ok(read('README.md').includes(`Federated Identity red checks: all ${n} mutations caught`), 'the mutation count in the README is stale');
 });

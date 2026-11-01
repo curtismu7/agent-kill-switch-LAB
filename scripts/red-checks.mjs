@@ -23,7 +23,7 @@ const MUTATIONS = [
   ['stopping an agent leaves token issuance open', 'gateway.js', '    tokens.disable(a.id);\n    return { from', '    return { from'],
   ['a refused call is still charged', 'gateway.js', "if (a.state === 'reset') { a.state = 'armed'; a.reason = null; }", "a.usage.micros += cost; if (a.state === 'reset') { a.state = 'armed'; a.reason = null; }"],
   ['kill id is not resolved like the gate id', 'policy.js', 'if (k === PLACEHOLDER_AGENT) return Object.keys(AGENTS)[0];', ''],
-  ['unrevoke does not need an operator name', 'app.js', "kind === 'unrevoke' && (typeof body.operator !== 'string' || body.operator.trim() === '')", 'false'],
+  ['unrevoke does not need an operator name', 'app.js', "kind === 'unrevoke' && (typeof body.operator !== 'string' || maskText(body.operator) === '')", 'false'],
   ['Origin check removed (cross-origin kill and unrevoke accepted)', 'safety.js', 'if (origin !== undefined) {', 'if (false) {'],
   ['Sec-Fetch-Site cross-site check removed', 'safety.js', "=== 'cross-site') return refuse", "=== 'never') return refuse"],
   ['JSON-only body check removed', 'safety.js', 'if (hasBody && !/^application', 'if (false && !/^application'],

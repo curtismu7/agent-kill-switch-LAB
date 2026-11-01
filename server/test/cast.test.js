@@ -70,7 +70,7 @@ test('customer.config.json overrides brand, host and operator; values that look 
 });
 
 test('HTTP: ?vertical= picks the pack for the catalogue and the Mock table; a bad vertical is the default and is not echoed', async (t) => {
-  const srv = await startHttpServer({ port: await freePort('fedid'), runtime: createRuntime(), webDist: null });
+  const srv = await startHttpServer({ port: await freePort('cast'), runtime: createRuntime(), webDist: null });
   t.after(() => srv.close());
   const get = (q) => request(srv.port, 'GET', `/api/fedid${q}`);
   const fin = (await get('')).json;

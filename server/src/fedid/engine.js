@@ -10,7 +10,7 @@
 // Strings the visitor types are masked (mask.js) before they are stored or returned; every error message below is a fixed string
 // and never contains what was typed.
 import { fingerprint, parseToken, signToken, signatureValid } from './jwt.js';
-import { maskText } from './mask.js';
+import { maskText } from '../mask.js';
 import {
   ACCESS_KEYS, ALGS_ALLOWED, APPS, DEFAULT_LIFETIME_SEC, IDENTITIES, ISSUERS, KEYSET_REFRESH_SEC, LOG_KEEP, MAX_LIFETIME_SEC,
   ISSUER_CAP, REASON_STATUS, REQUEST_CAP, SERVICES, VIAS,
@@ -47,8 +47,8 @@ export function parseRequestBody(b) {
 }
 export function parseRevokeBody(b) {
   if (!onlyKeys(b, ['workload', 'operator', 'reason']) || !known(IDENTITIES, b.workload)) return { error: FIELD_ERROR };
-  if (typeof b.operator !== 'string' || b.operator.trim() === '' || b.operator.length > 200) return { error: FIELD_ERROR };
-  if (b.reason !== undefined && (typeof b.reason !== 'string' || b.reason.length > 1000)) return { error: FIELD_ERROR };
+  if (typeof b.operator !== 'string' || b.operator.trim() === '' || b.operator.length > 40) return { error: FIELD_ERROR };
+  if (b.reason !== undefined && (typeof b.reason !== 'string' || b.reason.length > 200)) return { error: FIELD_ERROR };
   return { value: { workload: b.workload, operator: b.operator, reason: b.reason ?? '' } };
 }
 export function parseIssuerBody(b) {
@@ -227,10 +227,10 @@ export function createFedId({ audit, startMs = () => Date.now(), signing = 'rsa'
       if (p.error) return { ok: false, status: 400, error: 'bad_request', message: p.error };
       const { workload } = p.value;
       // The operator name is judged AFTER masking: a name made only of invisible characters is empty.
-      const operator = maskText(p.value.operator, 40);
+      const operator = maskText(p.value.operator);
       if (operator.trim() === '') return { ok: false, status: 400, error: 'bad_request', message: FIELD_ERROR };
       if (records[workload].state !== 'active') return { ok: false, status: 409, error: 'already_revoked', message: 'that identity is already revoked' };
-      const note = maskText(p.value.reason, 200);
+      const note = maskText(p.value.reason);
       Object.assign(records[workload], { state: 'revoked', revokedAt: nowMs, revokedBy: operator, note });
       revokes[workload] = { n };
       audit.append('fedid_revoke', workload, { operator, note });
