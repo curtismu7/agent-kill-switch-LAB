@@ -1,0 +1,4 @@
+{
+  "_readme": "Copy to customer.config.json (git-ignored) to brand the Federated Identity story. Only these three cast values are read; everything else is ignored. brand is a short plain name. host is one label (lowercase letters, digits, dashes) that becomes <host>.example. operator is the operator name the story revokes with (lowercase letters, digits, dots, dashes). A value that looks like a URL, an address or a host name is ignored. The vertical packs (finance, health, retail) are chosen in the page; this file overrides the chosen pack's values. Every name in the packs is synthetic.",
+  "cast": { "brand": "Fabrikam Bank", "host": "fabrikam", "operator": "on-call-operator" }
+}

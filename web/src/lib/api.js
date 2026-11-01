@@ -28,9 +28,10 @@ export const postKill = (body) => call("/api/kill", "POST", body);
 export const postUnrevoke = (body) => call("/api/unrevoke", "POST", body);
 
 // ---- Federated Identity revoke section (H2 2026 update) ----
-export const getFedid = () => call("/api/fedid");
+const vq = (vertical) => `?vertical=${encodeURIComponent(vertical || "finance")}`;
+export const getFedid = (vertical) => call(`/api/fedid${vq(vertical)}`);
 export const getFedidDiagram = () => call("/api/fedid/diagram");
-export const getFedidMock = () => call("/api/fedid/mock");
+export const getFedidMock = (vertical) => call(`/api/fedid/mock${vq(vertical)}`);
 export const getFedidState = () => call("/api/fedid/state");
 export const postFedidRevoke = (body) => call("/api/fedid/revoke", "POST", body);
 export const postFedidIssuer = (body) => call("/api/fedid/issuer", "POST", body);

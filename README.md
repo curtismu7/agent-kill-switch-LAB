@@ -73,6 +73,8 @@ npm run red-checks-fedid  # the same for the Federated Identity section, server 
 
 This app needs no setting. It reads the repo-root `.env` (real environment variables win), and it does not read `~/Development/.env`. Every key is optional:
 
+* `CUSTOMER_CONFIG`: path of a `customer.config.json` (default: the repo root) that brands the Federated Identity story; see `customer.config.example.json`.
+
 * `KILL_SWITCH_PORT`: the server port (default 6550; only 6550-6599 accepted).
 * `KILL_SWITCH_BIND`: the bind address; the container sets it, a local run never should.
 * `MODE`: `local` (default) or `se-mock` (the hosted mock build; refuses every live or credential setting).
@@ -96,13 +98,13 @@ If the port is taken:
 ## Mock and live modes
 
 * **Kill switch tab:** Mock only (a scripted demo). The header shows `DEMO`.
-* **Federated Identity tab:** the **Mock / Live** toggle is on the tab, the mode is named in the banner on every tab and in presenter mode.
+* **Federated Identity tab:** the **Story vertical** picker (finance, health, retail) fills the `{{cast}}` tokens of the story (brand, host, team, operator name) from a synthetic pack; an optional git-ignored `customer.config.json` (see `customer.config.example.json`) overrides the brand, host label and operator name. The **Mock / Live** toggle is on the tab, the mode is named in the banner on every tab and in presenter mode.
   * **Mock:** the 18-step story as a table, generated from the engine with a fixed marker instead of a signature (`npm run fedid-mock`). A test regenerates it and fails on any drift, and another runs the same story with real signing and requires the same decisions (parity).
   * **Live:** the real engine. You choose the workload, service, what it presents (its token or an access key that names it), the token lifetime, then revoke an identity (operator and reason are masked for secret shapes first), switch an issuer outage on, move virtual time, or press Run the story. A refusal is a real 401 or 403 answer; the browser logs those as console messages, which is expected. The one raw token shown is mock-issued, signed with a throwaway key, and appears only in the answer to the request that presented it.
   * The hosted mock build refuses Live (403) and shows the Mock table.
 * Reset (the button, `POST /api/reset`) puts everything back, including the audit epoch and every diagram's box positions.
 
-Caps: 300 requests per Live session (429, nothing evicted), the virtual clock may move 30 days at most, request bodies are 2 KB.
+Caps: 300 requests and 40 issuer outage changes per Live session (429, nothing evicted; Reset starts again), the virtual clock may move 30 days at most, request bodies are 2 KB. At most 200 visitor workspaces are held: a new visitor past that gets a JSON 503 and no existing workspace is evicted (an idle one expires after the 8 h cookie lifetime).
 
 **Masking is a heuristic.** The text typed into the operator and reason fields is masked for the secret shapes listed in `docs/safety.md` before it is stored or shown; a secret in a shape not on that list can get through. Do not type real secrets.
 
@@ -184,9 +186,9 @@ It publishes `127.0.0.1:6550` only (OrbStack, never Docker Desktop). The host po
 npm test
 ```
 
-On Node 26: 164 server tests (node:test), 45 web tests (vitest) and 51 script tests, exit 0. The tests use a glob (`node --test test/*.test.js`), a fake clock and no sleeps, and no wall-clock assertions. `npm run e2e` reports 59 PASS for the Kill switch tab and `npm run e2e-fedid` all checks passed for the new tab.
+On Node 26: 188 server tests (node:test), 49 web tests (vitest) and 56 script tests (55 run and 1 is skipped when the Learning Hub repo is not beside the clone), exit 0. The tests use a glob (`node --test test/*.test.js`), a fake clock and no sleeps, and no wall-clock assertions. `npm run e2e` reports 59 PASS for the Kill switch tab and `npm run e2e-fedid` all checks passed for the new tab.
 
-Red checks (each mutation changes one behaviour in a copy and requires the tests to fail): `npm run red-checks` reports all 63 mutations caught and `npm run red-checks-web` all 23 UI mutations caught. Federated Identity red checks: all 57 mutations caught (`npm run red-checks-fedid`; every editable field has a mutant, on the server and in the page). `scripts/docs.test.mjs` and `scripts/fedid-docs.test.mjs` pin these counts to the scripts, so they cannot drift silently.
+Red checks (each mutation changes one behaviour in a copy and requires the tests to fail): `npm run red-checks` reports all 63 mutations caught and `npm run red-checks-web` all 23 UI mutations caught. Federated Identity red checks: all 89 mutations caught (`npm run red-checks-fedid`; every editable field has a mutant, on the server and in the page). `scripts/docs.test.mjs` and `scripts/fedid-docs.test.mjs` pin these counts to the scripts, so they cannot drift silently.
 
 ### What the mutation checks cover, and what is not verified
 

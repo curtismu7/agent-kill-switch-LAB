@@ -15,6 +15,8 @@ const J = 'server/src/fedid/jwt.js';
 const T = 'server/src/fedid/tables.js';
 const W = 'server/src/workspaces.js';
 const WS = ['test/workspaces.test.js'];
+const CAST = 'server/src/cast.js';
+const CT = ['test/cast.test.js'];
 const CORE = ['test/fedid.test.js', 'test/fedid-mock.test.js', 'test/fedid-api.test.js'];
 const MASK = ['test/fedid-masking.test.js', '--test-name-pattern=maskText'];
 // [name, file (from the repo root), from, to, tests]. A server mutant runs `node --test` on its tests, a web mutant runs vitest on the page tests.
@@ -85,6 +87,13 @@ const MUTATIONS = [
   ['workspaces: the oldest workspace is evicted at the cap', W, 'if (live.size >= cap) return null;', 'if (live.size >= cap) live.delete(live.keys().next().value);', WS],
   ['workspaces: an idle workspace is never dropped', W, 't - v.at > idleMs', 'false', WS],
   ['workspaces: a recently used workspace is dropped', W, 't - v.at > idleMs', 't - v.at >= 0', WS],
+  // ---- {{cast}} tokens and the vertical packs (rules 10 and 12) ----
+  ['cast: any string is accepted as a vertical (a prototype name gets through)', CAST, 'Object.hasOwn(VERTICALS, id) ? id', 'id in VERTICALS ? id', CT],
+  ['cast: the Mock table is served with its tokens left in', 'server/src/fedid/routes.js', 'table: fillDeep(MOCK, castFor(req).cast)', 'table: MOCK', CT],
+  ['cast: customer.config values are not cut at 40 characters', CAST, '.trim().slice(0, MAX_CAST)', '.trim()', CT],
+  ['cast: a host label with a dot is accepted from customer.config', CAST, "if (short === 'host' && clean.includes('.')) continue;", '', CT],
+  ['cast: a URL-looking value is accepted from customer.config', CAST, String.raw`if (/:\/\/|@|`, 'if (/(?!)|@|', CT],
+  ['cast: the story ignores the chosen pack', 'server/src/fedid/routes.js', 'story: storyFor(cast).map', 'story: storyFor(VERTICALS.finance).map', CT],
   // ---- the page (vitest on web/src/test/fedid.test.jsx) ----
   ['page: workload field not sent', 'web/src/components/FedIdTab.jsx', 'workload: form.workload, service: form.service, via: form.via,', 'workload: "fi-billing-agent", service: form.service, via: form.via,', 'web'],
   ['page: service field not sent', 'web/src/components/FedIdTab.jsx', 'service: form.service, via: form.via, lifetimeSec: form.lifetime', 'service: "mcp", via: form.via, lifetimeSec: form.lifetime', 'web'],
@@ -101,6 +110,10 @@ const MUTATIONS = [
   ['page: Live is selectable in the hosted build', 'web/src/components/FedIdTab.jsx', 'disabled={hosted} data-testid="fedid-mode-live"', 'data-testid="fedid-mode-live"', 'web'],
   ['page: Reset does not call the page-wide reset', 'web/src/components/FedIdTab.jsx', 'await onReset(); setStatus', 'setStatus', 'web'],
   ['page: the cut panel counts allowed instead of refused', 'web/src/components/FedIdParts.jsx', '{a.refused} of {a.requests} requests from this identity were refused', '{a.allowed} of {a.requests} requests from this identity were refused', 'web'],
+  ['page: a late answer for an older vertical wins (stale guard removed)', 'web/src/components/FedIdTab.jsx', 'if (!alive) return;\n      setCat(c); setMock(m.table);', 'setCat(c); setMock(m.table);', 'web'],
+  ['page: the chosen vertical is not sent', 'web/src/components/FedIdTab.jsx', 'Promise.all([getFedid(vertical), getFedidMock(vertical)])', 'Promise.all([getFedid("finance"), getFedidMock("finance")])', 'web'],
+  ['page: a name the visitor typed is overwritten when the pack changes', 'web/src/components/FedIdTab.jsx', 'f.operator === before ? {', 'true ? {', 'web'],
+  ['page: the claims table leaves out the roadmap rows', 'web/src/components/FedIdTab.jsx', '    ...cat.roadmap.map((r) => ({ id: r.id,', '    ...[].map((r) => ({ id: r.id,', 'web'],
 ];
 
 const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'ks-redfed-'));

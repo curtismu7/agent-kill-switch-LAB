@@ -52,13 +52,13 @@ Open <http://127.0.0.1:6550/#federated-identity>. Show **Mock** first (the table
 
 ### The story, step by step
 
-1. The billing agent calls an MCP server with its platform token: allowed.
+1. The payments-platform billing agent calls an MCP server on the fabrikam.example gateway with its platform token: allowed.
 2. The same identity reaches a peer agent: allowed. Only the scopes differ between service families.
 3. And an LLM provider: allowed.
 4. An agent access key that names this identity as its principal: allowed.
-5. A second identity, the nightly job, works too.
+5. A second identity, the Fabrikam Bank nightly job, works too.
 6. The nightly job has no A2A scope: refused for a different reason than a revoke (403 scope_missing).
-7. **REVOKE.** An operator revokes the billing identity.
+7. **REVOKE.** An operator (on-call-operator) revokes the billing identity.
 8. The very next request from the billing agent is refused. Its token is still valid; the identity is not.
 9. The same identity is cut off from the peer-agent service too.
 10. And from the LLM service: one revoke, every service family.

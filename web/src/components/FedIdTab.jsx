@@ -11,6 +11,8 @@ const VIA_TEXT = { token: "its platform token", key: "an agent access key that n
 // The Federated Identity revoke section (H2 2026 update). Mock: the generated table. Live: the real local engine, driven by the visitor.
 export default function FedIdTab({ mode, setMode, hosted, presenter, setPresenter, theme, resetSignal, onReset }) {
   const [cat, setCat] = useState(null);
+  const [vertical, setVertical] = useState("finance");
+  const lastOperator = useRef("on-call-operator");
   const [pattern, setPattern] = useState(null);
   const [mock, setMock] = useState(null);
   const [live, setLive] = useState(null);
@@ -27,9 +29,22 @@ export default function FedIdTab({ mode, setMode, hosted, presenter, setPresente
   speedRef.current = speed;
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  // The story, the Mock table and the names in them depend on the chosen vertical pack; the diagram does not. A late answer for an older choice is dropped.
   useEffect(() => {
     let alive = true;
-    Promise.all([getFedid(), getFedidDiagram(), getFedidMock()]).then(([c, d, m]) => { if (alive) { setCat(c); setPattern(d); setMock(m.table); } }, (e) => { if (alive) setError(`Could not load the Federated Identity section: ${e.message}`); });
+    Promise.all([getFedid(vertical), getFedidMock(vertical)]).then(([c, m]) => {
+      if (!alive) return;
+      setCat(c); setMock(m.table);
+      // the operator field follows the pack's operator name until the visitor has typed their own
+      const before = lastOperator.current;
+      lastOperator.current = c.cast.castOperator;
+      setForm((f) => (f.operator === before ? { ...f, operator: c.cast.castOperator } : f));
+    }, (e) => { if (alive) setError(`Could not load the Federated Identity section: ${e.message}`); });
+    return () => { alive = false; };
+  }, [vertical]);
+  useEffect(() => {
+    let alive = true;
+    getFedidDiagram().then((d) => { if (alive) setPattern(d); }, (e) => { if (alive) setError(`Could not load the Federated Identity section: ${e.message}`); });
     return () => { alive = false; playId.current += 1; };
   }, []);
 
@@ -101,6 +116,13 @@ export default function FedIdTab({ mode, setMode, hosted, presenter, setPresente
   }, [view, mock, live]);
   const hasKey = (id) => (live?.identities.find((i) => i.id === id)?.key ?? (id === "fi-billing-agent" ? "key-billing" : null)) !== null;
 
+  // Every claim, in the order the server counts them: the table has exactly claimCount rows (the "not said" and roadmap items are listed too).
+  const claimRows = cat ? [
+    ...cat.facts.map((f) => ({ id: f.id, tag: f.tag, text: `${f.text} (slide ${f.slide})` })), ...cat.swagger, ...cat.readings, ...cat.invented,
+    ...cat.notSaid.map((n) => ({ id: n.id, tag: n.tag, text: `${n.question} ${n.deck} Lab: ${n.lab}` })),
+    ...cat.roadmap.map((r) => ({ id: r.id, tag: r.tag, text: `${r.name} (${r.what}) is ${r.availability} on slide ${r.slide}. ${r.note}` })),
+  ] : [];
+
   if (error && !cat) return <p className="banner" role="alert">{error}</p>;
   if (!cat) return <p className="empty">Loading the Federated Identity section...</p>;
 
@@ -115,6 +137,11 @@ export default function FedIdTab({ mode, setMode, hosted, presenter, setPresente
             <button type="button" className="btn" aria-pressed={view === "mock"} onClick={() => setMode("mock")} data-testid="fedid-mode-mock">Mock</button>
             <button type="button" className="btn" aria-pressed={view === "live"} onClick={() => setMode("live")} disabled={hosted} data-testid="fedid-mode-live">Live</button>
           </div>
+          <label className="fedid__vertical">Story vertical
+            <select value={vertical} onChange={(e) => setVertical(e.target.value)} disabled={busy || playing} data-testid="fedid-vertical">
+              {cat.verticals.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </label>
           <span className="fedid__mode-note" data-testid="fedid-mode-note">{view === "mock" ? "Mock: a table generated from the engine, the same on every machine." : "Live: the real local engine, real RS256 signing and verification with a throwaway key."}{hosted ? " (The hosted mock build has no Live mode.)" : ""}</span>
           <button type="button" className="btn" aria-pressed={presenter} onClick={() => setPresenter(!presenter)} data-testid="fedid-presenter">Presenter (P)</button>
         </div>
@@ -216,12 +243,12 @@ export default function FedIdTab({ mode, setMode, hosted, presenter, setPresente
       </section>
 
       <details className="panel no-present" data-testid="fedid-claims">
-        <summary>Every claim on this page, with its tag ({cat.claimCount})</summary>
+        <summary>Every claim on this page, with its tag ({claimRows.length})</summary>
         <div className="fedid-scroll">
           <table className="fedid-table fedid-table--small">
             <thead><tr><th>Tag</th><th>Claim</th></tr></thead>
             <tbody>
-              {[...cat.facts.map((f) => ({ id: f.id, tag: f.tag, text: `${f.text} (slide ${f.slide})` })), ...cat.swagger, ...cat.readings, ...cat.invented].map((c) => (
+              {claimRows.map((c) => (
                 <tr key={c.id} data-testid="fedid-claim-row"><td><ClaimTag tag={c.tag} /></td><td>{c.text}</td></tr>
               ))}
             </tbody>

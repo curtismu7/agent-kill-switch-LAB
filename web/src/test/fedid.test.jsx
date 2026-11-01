@@ -5,6 +5,7 @@ import * as api from "../lib/api.js";
 import App, { RELEASE_BANNER } from "../App.jsx";
 import FedIdTab from "../components/FedIdTab.jsx";
 import { catalogue } from "../../../server/src/fedid/routes.js";
+import { DEFAULT_CAST, VERTICALS, fillDeep } from "../../../server/src/cast.js";
 import { buildDiagram } from "../../../server/src/fedid/diagram.js";
 import { BANNER } from "../../../server/src/fedid/facts.js";
 import { loadMock } from "../../../server/src/fedid/mock.js";
@@ -19,9 +20,9 @@ const T = Date.UTC(2026, 10, 2, 9, 0, 0);
 function engineApi() {
   const e = createFedId({ audit: createAudit({ now: () => new Date(T) }), startMs: () => T, signing: "mock" });
   const state = () => structuredClone(e.state());
-  api.getFedid.mockResolvedValue(JSON.parse(JSON.stringify(catalogue())));
+  api.getFedid.mockImplementation(async (v) => JSON.parse(JSON.stringify(catalogue(VERTICALS[v] || DEFAULT_CAST, VERTICALS[v] ? v : "finance"))));
   api.getFedidDiagram.mockResolvedValue(buildDiagram());
-  api.getFedidMock.mockResolvedValue({ mode: "mock", table: MOCK });
+  api.getFedidMock.mockImplementation(async (v) => ({ mode: "mock", table: fillDeep(MOCK, VERTICALS[v] || DEFAULT_CAST) }));
   api.getFedidState.mockImplementation(async () => ({ state: state() }));
   api.postFedidRequest.mockImplementation(async (body) => {
     const r = e.request(body);
@@ -52,7 +53,7 @@ test("every claim row carries a tag from the list, and the roadmap item says no 
   engineApi();
   render(<FedIdTab {...props({ mode: "mock" })} />);
   await screen.findByTestId("fedid-mock-table");
-  const tags = new Set(catalogue().tags);
+  const tags = new Set(catalogue(DEFAULT_CAST, "finance").tags);
   document.querySelectorAll("[data-tag]").forEach((el) => expect(tags.has(el.getAttribute("data-tag"))).toBe(true));
   expect(screen.getByTestId("fedid-roadmap")).toHaveTextContent(/Agent Lifecycle Management.*Q4 2026.*No behaviour is claimed or modelled/);
 });
@@ -196,4 +197,64 @@ test("the diagram comes from the server's diagram data: nine arrows, Simulate wa
   expect(screen.getByTestId("fedid-step")).toHaveTextContent(/Simulate walks the 9 arrows/);
   await user.click(screen.getByTestId("fedid-simulate"));
   await waitFor(() => expect(screen.getByTestId("fedid-step")).toHaveTextContent(/Step 1 of 9/));
+});
+
+test("VERTICAL: choosing a pack refetches the story and the Mock table with its names; the operator field follows the pack until the visitor types their own", async () => {
+  engineApi();
+  const user = userEvent.setup();
+  render(<FedIdTab {...props({ mode: "mock" })} />);
+  expect(await screen.findByTestId("fedid-mock-table")).toBeInTheDocument();
+  expect(within(screen.getByTestId("fedid-cut")).getByText(/was revoked by/)).toHaveTextContent(`revoked by ${VERTICALS.finance.castOperator}`);
+  expect(screen.getAllByTestId("fedid-mock-row")[0]).toHaveTextContent("payments-platform");
+  await user.selectOptions(screen.getByTestId("fedid-vertical"), "health");
+  await waitFor(() => expect(screen.getAllByTestId("fedid-mock-row")[0]).toHaveTextContent("clinical-platform"));
+  expect(within(screen.getByTestId("fedid-cut")).getByText(/was revoked by/)).toHaveTextContent(`revoked by ${VERTICALS.health.castOperator}`);
+  expect(api.getFedid).toHaveBeenLastCalledWith("health");
+  expect(api.getFedidMock).toHaveBeenLastCalledWith("health");
+  expect(document.body.textContent).not.toMatch(/\{\{/);
+});
+
+test("VERTICAL: the operator field follows the pack, but a name the visitor typed is kept", async () => {
+  engineApi();
+  const user = userEvent.setup();
+  render(<FedIdTab {...props()} />);
+  await waitFor(() => expect(screen.getByTestId("fedid-send")).toBeEnabled());
+  expect(screen.getByTestId("fedid-operator")).toHaveValue(VERTICALS.finance.castOperator);
+  await user.selectOptions(screen.getByTestId("fedid-vertical"), "retail");
+  await waitFor(() => expect(screen.getByTestId("fedid-operator")).toHaveValue(VERTICALS.retail.castOperator));
+  await user.clear(screen.getByTestId("fedid-operator")); await user.type(screen.getByTestId("fedid-operator"), "my-own-name");
+  await user.selectOptions(screen.getByTestId("fedid-vertical"), "health");
+  await waitFor(() => expect(api.getFedid).toHaveBeenLastCalledWith("health"));
+  await waitFor(() => expect(screen.getByTestId("fedid-vertical")).toBeEnabled());
+  expect(screen.getByTestId("fedid-operator")).toHaveValue("my-own-name");
+});
+
+test("STALE GUARD: a slow answer for an older vertical never replaces the newer choice", async () => {
+  engineApi();
+  const user = userEvent.setup();
+  render(<FedIdTab {...props({ mode: "mock" })} />);
+  await screen.findByTestId("fedid-mock-table");
+  const real = api.getFedid.getMockImplementation();
+  let release; const slow = new Promise((r) => { release = r; });
+  api.getFedid.mockImplementation(async (v) => { if (v === "health") await slow; return real(v); });
+  await user.selectOptions(screen.getByTestId("fedid-vertical"), "health"); // slow
+  await user.selectOptions(screen.getByTestId("fedid-vertical"), "retail"); // fast, newer
+  await waitFor(() => expect(screen.getAllByTestId("fedid-mock-row")[0]).toHaveTextContent("commerce-platform"));
+  release();
+  await act(async () => { await slow; await Promise.resolve(); });
+  expect(screen.getAllByTestId("fedid-mock-row")[0]).toHaveTextContent("commerce-platform");
+  expect(screen.getByTestId("fedid-vertical")).toHaveValue("retail");
+});
+
+test("the claims table lists every claim: its row count is the number in its heading and the server's claim count", async () => {
+  engineApi();
+  render(<FedIdTab {...props({ mode: "mock" })} />);
+  await screen.findByTestId("fedid-mock-table");
+  const rows = screen.getAllByTestId("fedid-claim-row");
+  const n = catalogue(DEFAULT_CAST, "finance").claimCount;
+  expect(rows).toHaveLength(n);
+  expect(n).toBeGreaterThan(23);
+  expect(within(screen.getByTestId("fedid-claims")).getByText(/Every claim on this page/)).toHaveTextContent(`(${n})`);
+  const ids = rows.map((r) => r.textContent);
+  expect(new Set(ids).size).toBe(ids.length);
 });

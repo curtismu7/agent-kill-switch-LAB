@@ -6,7 +6,7 @@
     {
       "step": 1,
       "t": "request",
-      "say": "The billing agent calls an MCP server with its platform token: allowed.",
+      "say": "The {{castTeam}} billing agent calls an MCP server on the {{castHost}}.example gateway with its platform token: allowed.",
       "result": {
         "n": 1,
         "at": "2026-11-02T09:00:02.000Z",
@@ -355,7 +355,7 @@
     {
       "step": 5,
       "t": "request",
-      "say": "A second identity, the nightly job, works too.",
+      "say": "A second identity, the {{castBrand}} nightly job, works too.",
       "result": {
         "n": 5,
         "at": "2026-11-02T09:00:10.000Z",
@@ -523,7 +523,7 @@
     {
       "step": 7,
       "t": "revoke",
-      "say": "An operator revokes the billing identity.",
+      "say": "An operator ({{castOperator}}) revokes the billing identity.",
       "ok": true,
       "workload": "fi-billing-agent"
     },
@@ -1236,7 +1236,7 @@
         "maxLifetimeSec": 3600,
         "state": "revoked",
         "revokedAt": "2026-11-02T09:00:14.000Z",
-        "revokedBy": "on-call-operator",
+        "revokedBy": "{{castOperator}}",
         "note": "suspected compromise",
         "key": "key-billing",
         "summary": {
