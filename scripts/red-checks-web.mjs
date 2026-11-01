@@ -39,6 +39,9 @@ const run = () => spawnSync(path.join(root, 'node_modules/.bin/vitest'), ['run']
 let bad = 0;
 try {
   fs.cpSync(path.join(root, 'web'), web, { recursive: true, filter: (s) => !s.includes('node_modules') && !s.includes('/dist') });
+  // The Federated Identity web tests drive the real engine, so the server sources sit beside web/ in the copy, with the same node_modules.
+  fs.cpSync(path.join(root, 'server'), path.join(copy, 'server'), { recursive: true, filter: (s) => !s.includes('node_modules') });
+  fs.symlinkSync(path.join(root, 'node_modules'), path.join(copy, 'node_modules'));
   fs.symlinkSync(path.join(root, 'node_modules'), path.join(web, 'node_modules'));
   const base = run();
   console.log(`${base.status === 0 ? 'PASS' : 'FAIL'}  baseline vitest (unmutated) exits ${base.status}`);

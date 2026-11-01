@@ -23,7 +23,7 @@ test('safety.md states the in-flight semantics', () => {
 test('every npm script the README tells you to run exists', () => {
   const readme = read('README.md');
   for (const m of readme.matchAll(/^npm (?:run )?([a-z0-9-]+)/gm)) {
-    if (m[1] === 'install') continue;
+    if (m[1] === 'install' || m[1] === 'ci') continue; // npm built-ins, not scripts
     assert.ok(pkg.scripts[m[1]], `README runs "npm ${m[1]}" which is not in package.json`);
   }
 });

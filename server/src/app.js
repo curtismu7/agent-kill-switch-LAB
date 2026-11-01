@@ -11,6 +11,7 @@ import { isHosted, publicHostOf } from './mode.js';
 import { createWorkspaces } from './workspaces.js';
 import { describeScenario, getScenario } from './scenarios.js';
 import { MODELS, TOOLS } from './policy.js';
+import { fedidRoutes } from './fedid/routes.js';
 
 export const DEFAULT_WEB_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 // The built UI is served from this server, so it is same-origin with the API. It may load script, style, image and fetch from itself only.
@@ -98,6 +99,8 @@ function buildApi(runtime) {
       runtime.reset();
       res.json({ ok: true, mode: runtime.mode });
     });
+
+    api.use('/fedid', fedidRoutes(runtime));
 
     api.use((_req, res) => bad(res, 'no such endpoint', 404));
     api.use((err, _req, res, _next) => {

@@ -63,12 +63,42 @@ Pinned by `gateway.test.js`: "in-flight call: finishes by default, charged, flag
 | The container publishes its port on loopback only, with no host mounts, no docker socket, no host network, a non-root user, a read-only root filesystem and no capabilities. | `scripts/compose.test.mjs`. |
 | No real credentials in the repo. | `.githooks/pre-commit` runs gitleaks on staged changes and refuses the commit if gitleaks is missing (`scripts/hooks.test.mjs`). Token-shaped test fixtures are assembled at run time. |
 
+## Federated Identity revoke section (H2 2026 update)
+
+Ping release claim, UNVERIFIED on our tenant. Everything in this section is simulated in the server process; the deck is "ID4AI Workforce - H2 2026", slide 40 (39 and 41 for context). Each claim carries one tag, listed in `server/src/fedid/facts.js`:
+
+| Tag | Meaning |
+| --- | --- |
+| `deck claim` | said by the deck, with its slide number. Ping's numbers (fifteen minutes, one hour) are only ever quoted as the deck's |
+| `console swagger name (schema only)` | a field or path name in the console swagger (2026-10-31). It proves the name exists, not how it behaves |
+| `lab reading` | how this lab chose to read a deck line or a name (for example "immediately" as "read on every request") |
+| `lab-invented` | made up: identities, subjects, `.example` hosts, 600 s default lifetime, 300-request cap, the story |
+| `measured (our note)` | computed from a run of this lab's own engine (counts of requests); says nothing about Ping's timing |
+| `roadmap` | slide 21 says Q4 2026 or Planned (Agent Lifecycle Management): no behaviour is claimed or modelled |
+
+Rules and the test behind each:
+
+| Rule | Pinned by |
+| --- | --- |
+| The Mock table is generated from the engine (signing = a fixed marker) and a test regenerates it. Live uses real RS256 signing and verification with throwaway RSA keys made in the process. The two make the same decisions. | `fedid-mock.test.js`: DRIFT and PARITY |
+| The token is verified on every request; every check is evaluated so the page can show that the token still validates after a revoke; the decision is the first failing check. A revoked identity is refused 403 `identity_revoked`, attributed to its deployment, on all three service families and on the key that names it; the other identity is untouched. An issuer outage does not bring it back. | `fedid.test.js` |
+| The workload token stops at the gateway: what the gateway sends to the backend is built from the application's own credential and scanned for the token (computed, not a constant). | `fedid.test.js`: "the token stops at the gateway" |
+| Honest statuses: 200 allowed, 401 token not acceptable, 403 refused, 400 bad body, 409 already revoked, 429 caps, 413/415/421 from the guards, JSON 404 and 405. The browser logs the deliberate 401/403 as console messages. | `fedid-api.test.js` |
+| Every editable field (workload, service, presents, lifetime, revoke target, operator, reason, outage, seconds) is proven by a mutant that must fail a test, on the server and in the page. | `npm run red-checks-fedid` |
+| Caps refuse the whole request: 300 requests per session (429, nothing evicted), a 30-day limit on the virtual clock, 2 KB bodies. Check-and-change is synchronous, so two revokes at once give one 200 and one 409. | `fedid.test.js`, `fedid-api.test.js` |
+| Text typed into the operator and reason fields is masked before it is stored, audited or returned; the same shapes typed into every other field, query, path, header and unknown key never come back, and never reach the server's stdout or stderr (a real server process is started and watched). **Masking is a heuristic**: it removes the secret shapes in `server/src/fedid/mask.js` (JWT, PEM, `sk-`/`ghp_`/`xox`/`AKIA` and short prefixed tokens, `name=value`, `my password is ...`, `pw: ...`, `Authorization:` lines, URL userinfo, long blobs; zero-width and control characters are deleted first, text is NFKC-folded and percent-decoded, and masking happens before truncating). A secret in another shape can get through. | `fedid-masking.test.js` |
+| The Live endpoints are refused (403) in the hosted mock build; the Mock table is served. | `fedid-api.test.js`: HOSTED |
+| Zero non-loopback connections (netguard with a self-test). | `fedid-api.test.js`: NETGUARD |
+| The raw mock-issued token is shown only in the answer to the request that presented it, labelled mock; the state, log, audit and Mock table never contain it. | `fedid-api.test.js`, `fedid.test.js` |
+
+What is not covered: this section carries over the app's single-user, in-memory model. The per-visitor workspaces still drop the least recently used one at their cap of 200 (existing behaviour of the hosted build, not changed here). The older Kill switch tab's operator and reason text still goes through the older, weaker redactor in `redaction.js` (no zero-width, NFKC or percent-decode handling); only the new section uses `fedid/mask.js`.
+
 ## Web UI rules
 
 * The UI is served by the server itself with a same-origin CSP (no framing, no objects, no base tag, no form posts, `connect-src 'self'`). Pinned by `server/test/static.test.js` and, in a real browser, by `scripts/e2e.mjs` (no request leaves the origin, no console error).
 * Every string the server sends is rendered as React text; there is no `dangerouslySetInnerHTML`. Pinned by the vitest hostile-string test and a red check that injects it.
 * Kill and Unrevoke go through the same CSRF-guarded endpoints; `scripts/e2e.mjs` also fires cross-origin POSTs from another page and checks that nothing changed. Unrevoke needs a confirm step and an operator name in the UI, and an operator name at the API.
-* The UI never sees an access token value, only ids; the token list is derived from events.
+* On the Kill switch tab the UI never sees an access token value, only ids; the token list is derived from events. The Federated Identity tab shows one raw mock-issued token, labelled mock, only in the answer to the request that presented it (rulebook rule 4).
 
 ## Red checks
 
@@ -81,5 +111,5 @@ Pinned by `gateway.test.js`: "in-flight call: finishes by default, charged, flag
 * **Only trips, kills, unrevokes, auto-resets, resets and scenario starts are audited**, not every call. Calls are in the bounded call log and event stream.
 * **Auto-reset and cooldown are evaluated lazily** when the agent is next looked at, so a state read can append the `auto_reset` audit entry.
 * **Money is integer micro-dollars from invented prices.** It teaches the mechanism, not what any model costs.
-* **Cookies are never read.**
+* **The only cookie read is the workspace id (`ks_ws`).**
 * **Single process, in memory.** No persistence, no clustering, no real distributed revocation: the gap model is a single cached list.

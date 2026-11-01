@@ -27,7 +27,7 @@ test('the pre-commit hook hands the staged changes to gitleaks when it is instal
   } finally { fs.rmSync(bin, { recursive: true, force: true }); }
 });
 
-test('engines.node matches what the code needs (process.loadEnvFile is Node 20.12+)', () => {
+test('engines.node is Node 26 (the rulebook: Node 26 only; the code itself needs 20.12+ for process.loadEnvFile)', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  assert.equal(pkg.engines.node, '>=20.12');
+  assert.equal(pkg.engines.node, '>=26');
 });

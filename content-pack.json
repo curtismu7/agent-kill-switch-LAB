@@ -14,7 +14,8 @@
       "rate-cap",
       "cost-cap",
       "revoke",
-      "audit"
+      "audit",
+      "federated-identity"
     ]
   },
   "glossary": [
@@ -45,6 +46,11 @@
       "definition": "How much else a stop affects. Stopping one agent changes nothing about the other agent's tokens, rate window, budget or state; only the global switch stops both."
     },
     {
+      "id": "claim-tags",
+      "term": "Claim tags",
+      "definition": "Every claim in the Federated Identity section is tagged with where it comes from: deck claim, console swagger name (schema only), lab reading, lab-invented, measured (our note) or roadmap. A swagger name proves a field exists, not how it behaves. Ping's numbers are never presented as this lab's."
+    },
+    {
       "id": "cost-cap",
       "term": "Cost cap",
       "definition": "A limit on what an agent may spend: a token budget and a money budget from an invented price table. Each admitted call is charged once, a refused call costs nothing, and spending exactly up to the budget is allowed. Prices here are illustrative, not any vendor's.",
@@ -70,6 +76,25 @@
       ]
     },
     {
+      "id": "exact-binding",
+      "term": "Exact identity binding",
+      "definition": "The gateway matches issuer and subject exactly, the audience is mandatory, and expiry is required with a capped lifetime (the deck says default one hour). Only asymmetric signature algorithms are accepted. Per the deck, Ping release claim, UNVERIFIED on our tenant."
+    },
+    {
+      "id": "federated-identity",
+      "term": "Federated Identity",
+      "definition": "A registered identity for a workload (a Kubernetes service account, a CI job and so on) whose agents authenticate with the short-lived token their own platform issues, so nothing long-lived is stored in the workload. Federated Identity is the display name from the H2 2026 deck; the Privilege API object is still called NonHumanIdentity. Ping release claim, UNVERIFIED on our tenant.",
+      "aliases": [
+        "NonHumanIdentity",
+        "NHI"
+      ]
+    },
+    {
+      "id": "identity-revoke",
+      "term": "Revoking a Federated Identity",
+      "definition": "One operator action after which the gateway refuses the workload on its next request, on every service family (MCP, A2A, LLM) and on an agent access key that names the identity, even though the platform token still validates. The deck says the workload is cut off immediately and gives no number; this lab counts requests, not milliseconds. What a real revoke does to the record, in flight requests or backend credentials is not stated in the deck. Ping release claim, UNVERIFIED on our tenant."
+    },
+    {
       "id": "in-flight",
       "term": "In-flight call",
       "definition": "A call already admitted when the stop lands. In this demo it is not interrupted by default: it finishes, is flagged completed-after-stop, and stays charged. Cancelling it is an option of the demo, not a documented product behaviour. The next call is refused."
@@ -80,12 +105,22 @@
       "definition": "Any string an agent or operator supplies is redacted and shown as plain text: hidden and control characters are made visible and sizes are bounded, so it cannot act as markup or instructions."
     },
     {
+      "id": "key-set-refresh",
+      "term": "Key set refresh and last known good",
+      "definition": "The gateway holds the issuer's published key set, refreshes it every fifteen minutes and keeps the last known good set through an issuer outage (per the deck). In this lab an outage does not bring a revoked identity back, and a not-revoked identity keeps working on the cached set. Ping release claim, UNVERIFIED on our tenant."
+    },
+    {
       "id": "kill-switch",
       "term": "Kill switch",
       "definition": "An operator control that revokes an agent's access so its next call is refused. Here it can be pulled for one agent or for all of them, and it is checked on every call. How a real product implements it is as modelled in the demo environment, UNVERIFIED against product documentation.",
       "aliases": [
         "revoke"
       ]
+    },
+    {
+      "id": "platform-issued-token",
+      "term": "Platform-issued token",
+      "definition": "The short-lived token a workload's own platform mints and rotates for it. The platform does not know about a revoke in Privilege, so after a revoke it keeps issuing valid tokens that the gateway refuses. In this lab it is a real RS256 token in Live mode, signed with a throwaway key made in the process, and a fixed marker in Mock mode."
     },
     {
       "id": "rate-cap",
@@ -169,6 +204,39 @@
       "action": {
         "type": "route",
         "href": "/"
+      }
+    },
+    {
+      "id": "fedid-revoke",
+      "label": "Revoke a Federated Identity (H2 2026 update)",
+      "description": "Mock table or Live engine: revoke the billing identity and watch its very next request be refused although its platform token is still valid. Ping release claim, UNVERIFIED on our tenant; every claim is tagged.",
+      "group": "try-it",
+      "terms": [
+        "federated-identity",
+        "platform-issued-token",
+        "identity-revoke",
+        "exact-binding",
+        "key-set-refresh"
+      ],
+      "story": "S04",
+      "action": {
+        "type": "route",
+        "href": "/#federated-identity"
+      }
+    },
+    {
+      "id": "fedid-why",
+      "label": "Why Federated Identity matters (Ping claims)",
+      "description": "Challenge: stored API keys outlive workloads and stay valid if they leak, so standing-secret findings block agent rollout. Technical: secretless, exactly bound, short-lived tokens verified per request and instantly revocable. Business: standing-secret audit findings close and unattended agents can be approved. From slide 40 of the H2 2026 deck, UNVERIFIED on our tenant.",
+      "group": "reference",
+      "terms": [
+        "federated-identity",
+        "claim-tags"
+      ],
+      "story": "S03",
+      "action": {
+        "type": "route",
+        "href": "/#federated-identity"
       }
     },
     {
@@ -271,6 +339,11 @@
       "id": "flow",
       "label": "Where each call goes",
       "href": "/"
+    },
+    {
+      "id": "fedid-revoke",
+      "label": "Revoking a Federated Identity cuts the workload off",
+      "href": "/#federated-identity"
     }
   ],
   "stories": [

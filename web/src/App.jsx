@@ -5,6 +5,7 @@ import { plural } from "./lib/format.js";
 import AuditPanel from "./components/AuditPanel.jsx";
 import BlastRadius from "./components/BlastRadius.jsx";
 import Feed from "./components/Feed.jsx";
+import FedIdTab from "./components/FedIdTab.jsx";
 import Flow from "./components/Flow.jsx";
 import GapTimeline from "./components/GapTimeline.jsx";
 import Gauges from "./components/Gauges.jsx";
@@ -17,6 +18,10 @@ const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; }
 const initialTheme = () => safe(() => localStorage.getItem("ks-theme"), null)
   || (safe(() => window.matchMedia("(prefers-color-scheme: dark)").matches, false) ? "dark" : "light");
 export const POLL_MS = 1500;
+// The words that must be on every tab, presenter mode included (a script test checks they match the server's).
+export const RELEASE_BANNER = "Ping release claim, UNVERIFIED on our tenant";
+const TABS = [["ks", "Kill switch"], ["fedid", "Federated Identity revoke (H2 2026)"]];
+const initialTab = () => (safe(() => window.location.hash, "") === "#federated-identity" ? "fedid" : "ks");
 export const BASE_MS = 1400;
 const SPEEDS = [["0.5", "0.5x"], ["1", "1x"], ["2", "2x"], ["4", "4x"]];
 const EVENT_KEEP = 500;
@@ -44,6 +49,9 @@ export default function App() {
   const [reason, setReason] = useState("");
   const [inFlight, setInFlight] = useState("finish");
   const [resetBudget, setResetBudget] = useState(false);
+  const [tab, setTab] = useState(initialTab);
+  const [fedMode, setFedMode] = useState("mock");
+  const [presenter, setPresenter] = useState(false);
   const cursor = useRef(0);
   const first = useRef(true);
   const simId = useRef(0);
@@ -160,14 +168,36 @@ export default function App() {
     if (simId.current === my) setSimulating(false);
   };
 
-  const onReset = () => guard(async () => {
+  // Everything back to the start. Also what the Federated Identity tab's Reset calls: one Reset clears both tabs and every diagram.
+  const resetAll = async () => {
     simId.current += 1; setSimulating(false);
     await postReset();
     first.current = true;
     setVerify(null); setOverride(null); setIntervened(false); setResetKey((k) => k + 1);
     await refresh();
+  };
+  const onReset = () => guard(async () => {
+    await resetAll();
     setStatus("Everything reset. The audit trail records the reset.");
   });
+
+  const fedHosted = !!snap?.hosted;
+  const fedShown = tab === "fedid";
+  useEffect(() => {
+    safe(() => { window.history.replaceState(null, "", tab === "fedid" ? "#federated-identity" : window.location.pathname + window.location.search); });
+  }, [tab]);
+  // P turns presenter mode on and off, Esc turns it off. Only on the Federated Identity tab, and never while typing in a field.
+  useEffect(() => {
+    if (!fedShown) { setPresenter(false); return undefined; }
+    const onKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (/^(input|textarea|select)$/i.test(e.target?.tagName || "") || e.target?.isContentEditable) return;
+      if (e.key === "Escape") setPresenter(false);
+      else if (e.key === "p" || e.key === "P") setPresenter((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fedShown]);
 
   const onKill = (target) => guard(async () => {
     await postKill({ ...target, operator: operator.trim() || "operator", reason: reason || undefined, inFlight });
@@ -214,11 +244,22 @@ export default function App() {
         </div>
       </header>
 
-      <main id="main" tabIndex={-1}>
+      <main id="main" tabIndex={-1} data-presenter={fedShown && presenter ? "true" : "false"}>
+        <p className="rel-banner" role="status" data-testid="release-banner" data-state={fedShown && fedMode === "live" && !fedHosted ? "live" : "mock"}>
+          <strong>{RELEASE_BANNER}.</strong>{" "}
+          Mode: <strong data-testid="release-banner-mode">{fedShown ? (fedMode === "live" && !fedHosted ? "Live (local engine, real RS256 signing)" : "Mock (generated table)") : "Mock (scripted demo)"}</strong>.
+          The 2026-11-02 release is not on our tenant; everything here is simulated in this process.
+        </p>
+        <nav className="tabs no-present" aria-label="Sections" data-testid="tabs">
+          {TABS.map(([id, label]) => <button key={id} type="button" className="btn" aria-pressed={tab === id} onClick={() => setTab(id)} data-testid={`tab-${id}`}>{label}</button>)}
+        </nav>
         {error && <p className="banner" role="alert">{error}</p>}
         {health?.unreachable && <p className="banner" role="alert">The health endpoint did not answer.</p>}
         <div className="sr-only" role="alert" data-testid="stop-alert">{alertText}</div>
 
+        {fedShown && <FedIdTab mode={fedMode} setMode={setFedMode} hosted={fedHosted} presenter={presenter} setPresenter={setPresenter} theme={theme} resetSignal={resetKey} onReset={resetAll} />}
+
+        <div className="ks-pane" hidden={fedShown}>
         <Story stage={stage} scenario={scenario} />
 
         <section className="panel controls" aria-labelledby="ctl-h">
@@ -276,6 +317,7 @@ export default function App() {
           <p><ModelBadge /> Every number (windows, budgets, prices, token lifetimes, cooldowns) is invented for this demo. Prices are illustrative, not any vendor&apos;s.</p>
           <p>The kill, trip, unrevoke, auto-reset and per-call enforcement behaviour is reproduced from the AI-DEMO2 demo environment. <strong>How real PingOne products implement revoke and caps is as modelled in the demo environment, UNVERIFIED against product documentation.</strong> This app makes no claim about real product defaults, limits or latency. The repository&apos;s docs/safety.md lists what is sourced and what is invented.</p>
         </footer>
+        </div>
       </main>
     </>
   );

@@ -72,3 +72,22 @@ React + Vite, one `App` that polls `/api/state`, `/api/events?since=` and `/api/
 ## Not built
 
 The content pack, the shelf entry, CI and a runner.
+
+## Federated Identity revoke section (H2 2026 update, `server/src/fedid/`)
+
+A workload presents the token its platform issued; the gateway verifies it on every request and reads the identity's state; a revoke makes the next request fail although the token still validates. The page is a second tab (`#federated-identity`) with a Mock view (a generated table) and a Live view (the real local engine).
+
+| File | Role |
+| --- | --- |
+| `tables.js` | Frozen tables: two issuers, two identities, one access key, three backend credentials, the caps. All names invented, all hosts `.example`. |
+| `jwt.js` | Real RS256 signing and verification with `node:crypto` and throwaway RSA keys (EC key generation is avoided). The Mock engine uses a fixed marker instead. |
+| `engine.js` | The engine: platform token minting (real or mock), the gateway's checks, key-set cache (15-minute refresh, last known good through an outage), revoke, issuer outage, virtual time, request cap, `summarize()` (the computed rows both views show). All synchronous, so check-and-change is atomic. |
+| `mask.js` | Masking for typed text (heuristic). |
+| `story.js`, `mock.js` | The 18-step story as data, and the Mock table generated from it (`mockTable.json`, written by `npm run fedid-mock`, drift-tested). |
+| `facts.js` | Every claim with its tag; the page, the talk track and the content pack are generated from it. |
+| `diagram.js`, `diagrams/fedid-revoke.json`, `diagramStudioValidate.js` | The diagram as diagram-studio/1 data, validated with a copy of the studio's validator. |
+| `routes.js` | `/api/fedid/*`. Mounted per workspace runtime; refused (403) for Live in the hosted build. |
+| `talk.js` | The generated section of `docs/talk-track.md` (`npm run talk-track`). |
+
+The engine writes `fedid_decision` and `fedid_revoke` entries to the same HMAC-chained audit trail, and `POST /api/reset` resets it with everything else.
+
