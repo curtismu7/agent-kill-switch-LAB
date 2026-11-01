@@ -56,7 +56,7 @@
 .fedid-stepbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
 .fedid-step { min-height: 3em; margin: 8px 0; }
 .fedid-canvas { height: 540px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); }
-@media (max-width: 600px) { .fedid-canvas { height: 420px; } .fedid-node { font-size: 16px; } .fedid-elabel { font-size: 14px; max-width: 190px; } }
+@media (max-width: 600px) { .fedid-canvas { height: 420px; } }
 [data-presenter="true"] .fedid-canvas { height: 620px; }
 .fedid-node { position: relative; width: 190px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 4px; background: var(--panel); color: var(--ink); font-size: 12px; font-weight: 600; line-height: 1.3; }
 .fedid-node[data-color="red"] { border-color: var(--kill); background: var(--kill-bg); }
@@ -73,3 +73,5 @@
 .fedid-edge--now .react-flow__edge-path { stroke: var(--accent); stroke-width: 3px; }
 .fedid-edge--dim .react-flow__edge-path { opacity: .3; }
 .fedid-edge--dashed .react-flow__edge-path { stroke-dasharray: 6 4; }
+/* Phone width: the diagram is held at half size, so its text is drawn twice as large to stay readable. Last in the file so it wins over the base sizes. */
+@media (max-width: 600px) { .fedid-node { font-size: 22px; } .fedid-elabel { font-size: 19px; max-width: 260px; } }

@@ -81,7 +81,8 @@ try {
       await page.waitForFunction(() => /Step 1 of 9/.test(document.querySelector('[data-testid="fedid-step"]').textContent));
       check(true, `${tag} diagram: Simulate starts at step 1`);
       await page.getByRole('button', { name: 'Stop' }).click();
-      const node = page.getByTestId('fedid-node-workload');
+      const node = page.getByTestId('fedid-node-platform');
+      await node.scrollIntoViewIfNeeded();
       const box = await node.boundingBox();
       await page.mouse.move(box.x + 20, box.y + 10); await page.mouse.down(); await page.mouse.move(box.x + 60, box.y + 80, { steps: 5 }); await page.mouse.up();
       check((await page.getByTestId('fedid-moved').innerText()) === '1', `${tag} diagram: a dragged box counts as moved`);

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Background, BackgroundVariant, BaseEdge, Controls, EdgeLabelRenderer, getBezierPath, Handle, MarkerType, Position, ReactFlow, ReactFlowProvider } from "@xyflow/react";
+import { Background, BackgroundVariant, BaseEdge, Controls, EdgeLabelRenderer, getBezierPath, Handle, MarkerType, Position, ReactFlow, ReactFlowProvider, useUpdateNodeInternals } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { STEP_TIME_OPTIONS, useStepper } from "../hooks/useStepper.js";
 
 // The diagram is diagram-studio/1 data loaded by name from /api/fedid/diagram: no node or edge is written here. Boxes move with the mouse;
 // Simulate walks the arrows in order (speed is the step time); Reset puts every box back and stops the walkthrough.
-// At phone width fitting the whole wide diagram makes the text unreadable, so the view is held at 0.6 on the first boxes (node text is larger in
+// At phone width fitting the whole wide diagram makes the text unreadable, so the view is held at 0.5 on the first boxes (node text is larger in
 // fedid.css); drag the background to pan, drag a box to move it.
 const narrow = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 600px)").matches;
 const HANDLES = [["t", Position.Top], ["b", Position.Bottom], ["l", Position.Left], ["r", Position.Right]];
@@ -54,7 +54,14 @@ const sides = (a, b) => {
 
 function Canvas({ pattern, positions, onMove, stepper, theme, fitKey }) {
   const active = stepper.step >= 0 ? pattern.steps[stepper.step] : null;
-  const fit = useMemo(() => (narrow() ? { padding: 0.1, minZoom: 0.6, maxZoom: 0.6, nodes: pattern.nodes.slice(0, 2).map((n) => ({ id: n.id })) } : { padding: 0.08 }), [pattern]);
+  const fit = useMemo(() => (narrow() ? { padding: 0.1, minZoom: 0.5, maxZoom: 0.5, nodes: pattern.nodes.slice(0, 2).map((n) => ({ id: n.id })) } : { padding: 0.08 }), [pattern]);
+  // On a slow or busy machine the first measurement of the boxes can miss their handles and no arrow is drawn: measure again shortly after mounting.
+  const updateInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    const ids = pattern.nodes.map((n) => n.id);
+    const timers = [60, 400, 1500].map((ms) => setTimeout(() => updateInternals(ids), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [pattern, fitKey, updateInternals]);
   const nodes = pattern.nodes.map((n) => ({ id: n.id, type: "box", position: positions[n.id], draggable: true, data: { id: n.id, label: n.label, color: n.color, on: !!active && (active.from === n.id || active.to === n.id) } }));
   const offs = labelOffsets(pattern.steps);
   const edges = pattern.steps.map((s, i) => {
