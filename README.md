@@ -1,6 +1,8 @@
-# Agent Kill Switch
+# Agent Kill Switch LAB
 
 A demo of how an organization stops a runaway AI agent: per-agent **rate caps** and **cost caps** that trip automatically, an operator **kill switch** that revokes the agent's access, and the very next call failing. It shows the access token being revoked, the token service refusing to issue a new one, what happens to a call that was already in flight, and how little the other agent notices.
+
+Repo: https://github.com/ping-sandbox/agent-kill-switch-LAB
 
 Everything is a mock. A scripted agent calls mock tools through a mock gateway, with a stub token service. There is no tenant, no real model and no network beyond `127.0.0.1`.
 

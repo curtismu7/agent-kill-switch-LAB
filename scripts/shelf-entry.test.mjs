@@ -23,6 +23,6 @@ test('the entry matches this app: id, catalog D14, port 6550, /api/health, compo
 });
 
 test('the copied rules reject a bad entry', () => {
-  const bad = [{ ...entry.demos[0], url: 'http://evil.example:6550', healthPath: '//x', composeFile: 'relative.yml' }];
+  const bad = [{ ...entry.demos[0], url: 'http://evil.example:6550', healthPath: '//x', composeFile: '../relative.yml' }];
   assert.ok(shelfProblems(bad).length >= 3);
 });
