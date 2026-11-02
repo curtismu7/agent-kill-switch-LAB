@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getAudit, getEvents, getHealth, getScenarios, getState, postKill, postReset, postUnrevoke, runScenario, stepScenario, verifyAudit } from "./lib/api.js";
+import { getAudit, getEvents, getHealth, getInfo, setMode, getScenarios, getState, postKill, postReset, postUnrevoke, runScenario, stepScenario, verifyAudit } from "./lib/api.js";
 import { announce, deriveGaps, deriveTokens, pathFor } from "./lib/derive.js";
 import { plural } from "./lib/format.js";
 import AuditPanel from "./components/AuditPanel.jsx";
@@ -12,6 +12,7 @@ import KillPanel from "./components/KillPanel.jsx";
 import { ModelBadge } from "./components/Badges.jsx";
 import Story from "./components/Story.jsx";
 import Tokens from "./components/Tokens.jsx";
+import ModeToggle from "./components/ModeToggle.jsx";
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
 const initialTheme = () => safe(() => localStorage.getItem("ks-theme"), null)
@@ -38,6 +39,8 @@ export default function App() {
   const [alertText, setAlertText] = useState("");
   const [error, setError] = useState("");
   const [resetKey, setResetKey] = useState(0);
+  const [info, setInfo] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0); // bumped after a mode switch: the load effect below runs again
   const [intervened, setIntervened] = useState(false);
   const [override, setOverride] = useState(null);
   const [operator, setOperator] = useState("on-call-operator");
@@ -80,11 +83,12 @@ export default function App() {
 
   useEffect(() => {
     getHealth().then(setHealth, () => setHealth({ unreachable: true }));
+    getInfo().then(setInfo, () => setInfo(null));
     getScenarios().then((r) => { setScenarios(r.scenarios); setScenarioId((id) => id || r.scenarios[0]?.id || ""); }, (e) => setError(`Could not load scenarios: ${e.message}`));
     refresh();
     const poll = setInterval(refresh, POLL_MS);
     return () => { clearInterval(poll); simId.current += 1; };
-  }, [refresh]);
+  }, [refresh, reloadKey]);
 
   const scenario = scenarios.find((s) => s.id === scenarioId) || null;
   const run = snap?.run || null;
@@ -185,6 +189,12 @@ export default function App() {
     setStatus(`Unrevoked ${target.agentId || "all agents"} by ${operator.trim()}. The agent needs a fresh token.`);
   });
 
+  // Switch Mock/Real on the server, then load everything the page shows again. A refused switch keeps the old mode.
+  const onSelectMode = (source) => guard(async () => {
+    simId.current += 1; setSimulating(false);
+    try { setInfo(await setMode(source)); setReloadKey((k) => k + 1); } catch (e) { getInfo().then(setInfo, () => {}); throw e; }
+  });
+
   const onVerify = () => guard(async () => { setVerify(await verifyAudit()); });
 
   const caption = lastEntry
@@ -208,6 +218,7 @@ export default function App() {
         <div className="top-right">
           <span className="badge demo" data-testid="mode-badge" title="Everything here is a mock: no tenant, no real model, nothing leaves 127.0.0.1.">DEMO</span>
           <ModelBadge />
+          <ModeToggle info={info} onSelect={onSelectMode} />
           <button type="button" className="btn small" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-pressed={theme === "dark"}>
             {theme === "dark" ? "Light" : "Dark"} theme
           </button>

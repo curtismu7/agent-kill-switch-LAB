@@ -27,6 +27,7 @@ code, time { font-family: var(--font-mono); font-size: .85em; }
 .top { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; align-items: flex-end; padding: 20px 0 14px; border-bottom: 4px solid var(--ink);
   background: repeating-linear-gradient(-45deg, transparent 0 14px, color-mix(in srgb, var(--hazard) 14%, transparent) 14px 28px); max-width: 1320px; margin: 0 auto; }
 .tag { margin: .3rem 0 0; color: var(--muted); max-width: 52ch; }
+.mode-toggle { display: inline-flex; gap: 4px; }
 .top-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 main { max-width: 1320px; margin: 0 auto; padding: 16px 0; display: grid; gap: 16px; }
 main:focus { outline: none; }
