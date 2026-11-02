@@ -112,20 +112,18 @@ function buildApi(runtime) {
 
 // Mock/Real. This app is mock only by design (a scripted agent, a stub token service and a mock gateway; nothing real to call), so
 // Real is never available in a normal build. `realAvailable` is a TEST-ONLY seam, never read from the environment, so the switch
-// itself can be tested. `hosted` (MODE=se-mock, see mode.js) is the fail-closed hosted build: it cannot be switched.
+// itself can be tested.
 const NO_REAL = 'Real mode is not available: this demo is mock only by design and has no real server to call.';
-const HOSTED_REASON = 'The hosted build is Mock only and cannot be switched.';
-function buildModeApi({ hosted, realAvailable }) {
-  const canReal = realAvailable === true && !hosted;
+function buildModeApi({ realAvailable }) {
+  const canReal = realAvailable === true;
   const state = { source: canReal ? 'real' : 'mock' };
-  const info = () => ({ source: hosted ? 'mock' : state.source, realAvailable: canReal, hosted, realReason: hosted ? HOSTED_REASON : canReal ? null : NO_REAL });
+  const info = () => ({ source: state.source, realAvailable: canReal, realReason: canReal ? null : NO_REAL });
   const r = express.Router();
   r.get('/info', (_req, res) => res.json(info()));
   // Body is exactly {source: "mock" | "real"}. The mode lives in memory, so a switch needs no restart.
   r.post('/mode', express.json({ limit: '2kb' }), (req, res) => {
     const b = req.body;
     if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).length !== 1 || !['mock', 'real'].includes(b.source)) return bad(res, 'body must be exactly {"source": "mock" or "real"}');
-    if (hosted) return res.status(403).json({ error: 'forbidden', message: HOSTED_REASON });
     if (b.source === 'real' && !canReal) return res.status(409).json({ error: 'conflict', message: NO_REAL });
     state.source = b.source;
     return res.json(info());
@@ -148,7 +146,7 @@ const routerFor = (runtime) => {
 
 // webDist: directory with the built UI. null (default, so API tests never depend on a build) disables static serving.
 // Either `runtime` (one fixed runtime: the tests) or `workspaces` (one runtime per browser, the default for startHttpServer).
-export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null, hosted = false, realAvailable = false } = {}) {
+export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null, realAvailable = false } = {}) {
   const app = express();
   app.disable('x-powered-by');
   const { hostGuard, originGuard } = makeGuards({ publicHost });
@@ -161,7 +159,7 @@ export function createApp({ runtime = null, workspaces = null, health = createHe
   }
   // The health probe is shared and reads no workspace state, so it does not create one.
   app.use('/api/health', health.router);
-  app.use('/api', buildModeApi({ hosted, realAvailable }));
+  app.use('/api', buildModeApi({ realAvailable }));
   const ws = runtime ? null : (workspaces || createWorkspaces());
   app.use('/api', (req, res, next) => routerFor(runtime ?? ws.resolve(req, res))(req, res, next));
   app.use((_req, res) => bad(res, 'no such endpoint', 404));
@@ -179,7 +177,7 @@ export async function startHttpServer({ port = serverPort(), host = bindHost(), 
   const workspaces = runtime ? null : createWorkspaces({ hosted });
   const health = createHealth({ env });
   return new Promise((resolve, reject) => {
-    const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost, hosted }).listen(port, host);
+    const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost }).listen(port, host);
     httpServer.once('error', (e) => { health.stop(); reject(e); });
     httpServer.once('listening', () => {
       const { port: bound } = httpServer.address();

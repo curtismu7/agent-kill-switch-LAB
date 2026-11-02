@@ -104,12 +104,9 @@ Every page header has a **Mock** / **Real** toggle (the pressed button is the cu
 design**: a scripted agent, a stub token service and a mock gateway, with no real server for Real to use. `realAvailable` is
 always `false`, the **Real** button is disabled, and its tooltip says why. Mock makes no outbound request.
 
-* `GET /api/info` returns `{ source, realAvailable, hosted, realReason }`. `source` is `mock` here.
-* `POST /api/mode` takes exactly `{ "source": "mock" | "real" }`: anything else is `400`; `real` is `409` (nothing real to call);
-  any switch on the hosted build is `403`. The mode lives in memory, so a switch needs no restart. After a successful switch the
-  page loads its data again.
-* Hosted build: the existing `MODE=se-mock` flag (see [docs/k8s.md](docs/k8s.md)). The server then answers `403` to any switch, and
-  `/api/info` and the Real tooltip give the reason. No new setting was added.
+* `GET /api/info` returns `{ source, realAvailable, realReason }`. `source` is `mock` here.
+* `POST /api/mode` takes exactly `{ "source": "mock" | "real" }`: anything else is `400`; `real` is `409` (nothing real to call). The mode lives in memory, so a switch needs no restart.
+  After a successful switch the page loads its data again.
 * No setting makes Real work. The tests use a test-only `createApp({ realAvailable: true })` seam (never read from the environment)
   to prove the switch goes both ways.
 
@@ -117,7 +114,7 @@ JSON bodies only (2 KB), same-origin only (cross-origin `Origin` / `Sec-Fetch-Si
 
 ## Verification
 
-Last run (KS2, a clean clone of the commit that carries this text): `npm test` exits 0 with 127 server tests, 39 web (vitest) tests and 43 script tests (42 run, 1 skipped); `npm run doctor` exits 0; `npm run e2e` reports 59 PASS and 0 FAIL; `npm run red-checks` reports all 63 mutations caught and `npm run red-checks-web` all 23 UI mutations caught. `scripts/docs.test.mjs` pins these two mutation counts to the scripts, so they cannot drift silently (the test counts are not pinned; re-run to see them). Each mutation removes or inverts one check in a copy of the code and requires the suite to fail: cap comparisons and window boundaries, budget accounting (money and token +1 boundaries), per-call kill check, revoked-token acceptance, revocation-list refresh, token expiry, audit entries for kill/unrevoke, eviction and sequence checks, auto-reset scope and the global-kill case, blast radius, key derivation (NFKC fold, 64-char bound), model/tool lookups, operator name on unrevoke, Origin, Sec-Fetch-Site, JSON-only and chunked-body checks, Host guard (loopback octets), credential guard, read/write method split, redaction patterns (JWT, AWS key, PEM, URL query and userinfo, `sk-`/`ghp_`/`xox`), event inertness and bounds, wall-time audit stamps, the operator-kill block on scenario start, and in the UI the confirm step, the always-available Kill, the kill skip link, non-tab-stop diagram boxes, the diagram remount on Reset, and reduced motion.
+Last run (KS2, a clean clone of the commit that carries this text): `npm test` exits 0 with 125 server tests, 38 web (vitest) tests and 43 script tests (42 run, 1 skipped); `npm run doctor` exits 0; `npm run e2e` reports 59 PASS and 0 FAIL; `npm run red-checks` reports all 63 mutations caught and `npm run red-checks-web` all 23 UI mutations caught. `scripts/docs.test.mjs` pins these two mutation counts to the scripts, so they cannot drift silently (the test counts are not pinned; re-run to see them). Each mutation removes or inverts one check in a copy of the code and requires the suite to fail: cap comparisons and window boundaries, budget accounting (money and token +1 boundaries), per-call kill check, revoked-token acceptance, revocation-list refresh, token expiry, audit entries for kill/unrevoke, eviction and sequence checks, auto-reset scope and the global-kill case, blast radius, key derivation (NFKC fold, 64-char bound), model/tool lookups, operator name on unrevoke, Origin, Sec-Fetch-Site, JSON-only and chunked-body checks, Host guard (loopback octets), credential guard, read/write method split, redaction patterns (JWT, AWS key, PEM, URL query and userinfo, `sk-`/`ghp_`/`xox`), event inertness and bounds, wall-time audit stamps, the operator-kill block on scenario start, and in the UI the confirm step, the always-available Kill, the kill skip link, non-tab-stop diagram boxes, the diagram remount on Reset, and reduced motion.
 
 Not verified: Node 20.12 (the `engines` floor, because `process.loadEnvFile` needs it) was not run; Node 22 and 26 were. Mobile (390 px) shows the whole diagram scaled down and small; zooming is the way to read it. Equivalent mutants that no test can kill by behaviour (for example removing the audit `prevHash` link check, which the HMAC over `prevHash` makes redundant, or the audit key-sort in the canonical form) are not pinned.
 

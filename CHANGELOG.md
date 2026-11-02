@@ -2,7 +2,7 @@
 
 ## 0.1.0 (unreleased)
 
-- Mock/Real toggle in the header, `GET /api/info`, `POST /api/mode`; the hosted build (`MODE=se-mock`) answers 403. Mock only by design: Real is disabled (409 from the API).
+- Mock/Real toggle in the header, `GET /api/info`, `POST /api/mode`. Mock only by design: Real is disabled (409 from the API).
 
 - KS0: server core. Injectable clock; stub token service (short-lived tokens, revocation list, issuance switch); mock gateway with a sliding-window rate cap, a token and money cost cap, a per-call kill-switch check, token validation (introspect or local with a stale revocation list) and the armed / tripped / killed / reset state machine with a global switch; in-flight call semantics (finish or cancel); cooldown and auto-reset for rate trips; operator kill and unrevoke (audited); scripted runaway agent and nine scenarios; event cursor; HMAC hash-chained audit with verify; HTTP API; `GET /api/health` (`demo-health/1`); doctor; loopback-published Docker files; gitleaks pre-commit hook; red-check script. No web UI yet.
 - KS1: web UI (story strip, scenario picker with Run / Step / Simulate / Reset / speed, React Flow diagram, rate and budget gauges, kill switch panel with confirm-gated Unrevoke, live feed, token list, revoke-to-first-refusal timeline, blast radius, audit with Verify, DEMO and MODEL/UNVERIFIED badges, dark/light, aria-live). The server serves `web/dist` with a same-origin CSP. The live clock is now scenario time (it no longer follows real time), which makes stepped and simulated runs deterministic. Playwright e2e, vitest suite, UI red checks, multi-stage Dockerfile.

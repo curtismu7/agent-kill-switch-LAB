@@ -1,7 +1,7 @@
 import React from "react";
 
 // Mock / Real switch in the header. This demo is Mock only by design, so Real is disabled and its tooltip (title) carries
-// the server's reason. The hosted build cannot be switched. The pressed button is the current mode.
+// the server's reason. The pressed button is the current mode.
 export default function ModeToggle({ info, onSelect }) {
   const loading = !info;
   const source = info?.source;

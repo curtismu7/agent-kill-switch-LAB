@@ -8,7 +8,7 @@ import { agent, ev, snapshot } from "./fixtures.js";
 vi.mock("../lib/api.js");
 const SCEN = [{ id: "normal", title: "Normal agent", summary: "s", teaches: "t", steps: 6, expect: [] }, { id: "manual-kill", title: "Manual kill mid-run", summary: "s2", teaches: "t2", steps: 7, expect: [] }];
 
-const MOCK_INFO = { source: "mock", realAvailable: false, hosted: false, realReason: "Real mode is not available: this demo is mock only by design and has no real server to call." };
+const MOCK_INFO = { source: "mock", realAvailable: false, realReason: "Real mode is not available: this demo is mock only by design and has no real server to call." };
 
 function setup({ state = snapshot(), events = [] } = {}) {
   let current = state; let evs = events; let head = events.length;
@@ -148,16 +148,6 @@ test("the Mock/Real toggle is in the header: Mock pressed, Real disabled with th
   expect(real).toHaveAttribute("aria-pressed", "false");
   expect(real).toBeDisabled();
   expect(real).toHaveAttribute("title", expect.stringMatching(/no real server to call/));
-});
-
-test("the hosted build shows Mock pressed and Real disabled with the hosted reason", async () => {
-  setup();
-  api.getInfo.mockResolvedValue({ ...MOCK_INFO, hosted: true, realReason: "The hosted build is Mock only and cannot be switched." });
-  render(<App />);
-  const real = await screen.findByRole("button", { name: "Real" });
-  await waitFor(() => expect(screen.getByRole("button", { name: "Mock" })).toHaveAttribute("aria-pressed", "true"));
-  expect(real).toBeDisabled();
-  expect(real).toHaveAttribute("title", expect.stringMatching(/hosted build is Mock only/));
 });
 
 test("clicking the toggle POSTs the mode, then loads info, scenarios and state again; the pressed button follows", async () => {
