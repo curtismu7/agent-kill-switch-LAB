@@ -223,6 +223,123 @@
           "story": {
             "type": "string",
             "description": "story id; must exist in stories[]"
+          },
+          "wire": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "intro",
+              "steps"
+            ],
+            "description": "Optional 'On the wire' block: example messages for the lesson. All values are fake (example hosts, sig-not-real signatures).",
+            "properties": {
+              "intro": {
+                "type": "string"
+              },
+              "links": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "label",
+                    "url"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "title",
+                    "notice"
+                  ],
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "between": {
+                      "type": "string",
+                      "description": "Who talks to whom, e.g. 'Agent app to Auth server'."
+                    },
+                    "quiet": {
+                      "type": "string",
+                      "description": "Required when the step has no request and no response: says plainly that no traffic happens."
+                    },
+                    "request": {
+                      "$ref": "#/$defs/wireMessage"
+                    },
+                    "response": {
+                      "$ref": "#/$defs/wireMessage"
+                    },
+                    "token": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "label",
+                        "header",
+                        "claims",
+                        "signature"
+                      ],
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "header": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/wireClaim"
+                          }
+                        },
+                        "claims": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/wireClaim"
+                          }
+                        },
+                        "signature": {
+                          "const": "sig-not-real"
+                        }
+                      }
+                    },
+                    "notice": {
+                      "type": "string",
+                      "description": "'What to notice': what this protects against."
+                    },
+                    "jargon": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "term",
+                          "meaning"
+                        ],
+                        "properties": {
+                          "term": {
+                            "type": "string"
+                          },
+                          "meaning": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -304,6 +421,55 @@
           "sourceId": {
             "type": "string"
           }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "wireClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value",
+        "note"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "description": "Any JSON value; shown as text and encoded into the example token."
+        },
+        "note": {
+          "type": "string",
+          "description": "Plain-language 'what this means'."
+        },
+        "focus": {
+          "type": "boolean",
+          "description": "Highlight this row: it is the claim the step is about."
+        }
+      }
+    },
+    "wireMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line"
+      ],
+      "properties": {
+        "line": {
+          "type": "string",
+          "description": "Request line (METHOD url) or status line (HTTP/1.1 200 OK)."
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "type": "string"
         }
       }
     }

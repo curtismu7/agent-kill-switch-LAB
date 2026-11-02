@@ -19,6 +19,7 @@
 import { AGENTS, DEFAULT_GATEWAY, DEFAULT_LIMITS, MODELS, TOOLS, costMicros, deriveAgentKey } from './policy.js';
 import { redactText } from './redaction.js';
 import { revealText } from './sanitize.js';
+import { maskText } from './mask.js';
 
 export const CALL_CAP = 200;
 const MAX_TOKENS_PER_CALL = 10_000_000;
@@ -199,8 +200,10 @@ export function createGateway({ clock, tokens, audit, events, limits = {}, confi
   }
 
   // ---- operator actions -------------------------------------------------------------------------------------------------
-  const who = (operator) => text(operator || 'operator', 40);
-  const note = (n) => text(n, 200);
+  // The operator name and the reason are masked at write time (mask.js), so nothing raw is ever stored in the audit trail or the event feed. The
+  // HTTP layer has already refused a name over 40 or a reason over 200 characters whole; nothing is cut here.
+  const who = (operator) => maskText(operator) || 'operator';
+  const note = (n) => maskText(n);
 
   function kill({ agentId, operator, reason, inFlight } = {}) {
     settle();

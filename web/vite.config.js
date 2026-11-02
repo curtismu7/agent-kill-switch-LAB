@@ -7,5 +7,6 @@ const api = { target: `http://127.0.0.1:${Number(process.env.KILL_SWITCH_PORT) |
 export default defineConfig({
   plugins: [react()],
   server: { host: "127.0.0.1", port: Number(process.env.VITE_PORT) || 6560, strictPort: true, proxy: { "/api": api } },
-  test: { environment: "jsdom", globals: true, setupFiles: "./src/testSetup.js" },
+  // The machine is shared and often loaded: a UI test that takes 6 s there is slow, not wrong.
+  test: { environment: "jsdom", globals: true, setupFiles: "./src/testSetup.js", testTimeout: 30000, hookTimeout: 30000 },
 });

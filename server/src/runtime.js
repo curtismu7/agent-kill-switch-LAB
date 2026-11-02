@@ -4,6 +4,7 @@
 import { createAudit } from './audit.js';
 import { createClock, wallNow as realNow } from './clock.js';
 import { createEvents } from './events.js';
+import { createFedId } from './fedid/engine.js';
 import { createGateway } from './gateway.js';
 import { AGENTS, DEFAULT_GATEWAY, MODELS, TOOLS, deriveAgentKey } from './policy.js';
 import { SCENARIOS, getScenario } from './scenarios.js';
@@ -16,6 +17,8 @@ const TOKEN_REASONS = new Set(['token_expired', 'token_revoked', 'token_unknown'
 export function createRuntime({ clock = createClock(), wallNow = realNow, auditStore, auditCap, hosted = false } = {}) {
   const events = createEvents({ clock });
   const audit = createAudit({ store: auditStore, now: () => new Date(wallNow()), scenarioNow: () => clock.iso(), cap: auditCap });
+  // The Federated Identity revoke engine (H2 2026 update): its own virtual time and state; it writes to the same audit trail.
+  const fedid = createFedId({ audit, startMs: wallNow });
   let world = null;
   let run = null;
 
@@ -132,7 +135,7 @@ export function createRuntime({ clock = createClock(), wallNow = realNow, auditS
   const runInfo = () => (run ? { id: run.id, scenario: run.scenario, cursor: run.cursor, total: getScenario(run.scenario).actions.length, done: run.done, counts: structuredClone(run.counts), expectation: run.expectation, transcript: structuredClone(run.transcript) } : null);
 
   return {
-    clock, audit, events, mode: 'demo', hosted,
+    clock, audit, events, fedid, mode: 'demo', hosted,
     get gateway() { return world.gateway; },
     scenarios: SCENARIOS,
     // Start the scenario afresh and execute every action.
@@ -164,6 +167,7 @@ export function createRuntime({ clock = createClock(), wallNow = realNow, auditS
       world = buildWorld();
       manualKills.clear();
       run = null;
+      fedid.reset();
       audit.reset();
       events.emit('reset', null, {});
     },

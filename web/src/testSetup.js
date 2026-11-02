@@ -1,4 +1,8 @@
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/dom";
+
+// findBy and waitFor give up after 1 s by default; the machine is shared and often loaded, so wait longer before calling a UI test failed.
+configure({ asyncUtilTimeout: 15000 });
 
 // React Flow measures the DOM; jsdom has no layout, so give it the few browser APIs it reads.
 class RO { observe() {} unobserve() {} disconnect() {} }

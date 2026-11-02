@@ -11,6 +11,8 @@ import { isHosted, publicHostOf } from './mode.js';
 import { createWorkspaces } from './workspaces.js';
 import { describeScenario, getScenario } from './scenarios.js';
 import { MODELS, TOOLS } from './policy.js';
+import { fedidRoutes } from './fedid/routes.js';
+import { maskText } from './mask.js';
 
 export const DEFAULT_WEB_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 // The built UI is served from this server, so it is same-origin with the API. It may load script, style, image and fetch from itself only.
@@ -32,7 +34,8 @@ function operatorBody(body, kind) {
   if (body.scope === 'agent' && (typeof body.agentId !== 'string' || body.agentId.length === 0 || body.agentId.length > 64)) return { error: 'agentId is required for scope "agent"' };
   if (body.scope === 'global' && body.agentId !== undefined) return { error: 'agentId must not be given for scope "global"' };
   if (!optString(body.reason, 200) || !optString(body.operator, 40)) return { error: 'operator (max 40) and reason (max 200) must be short strings' };
-  if (kind === 'unrevoke' && (typeof body.operator !== 'string' || body.operator.trim() === '')) return { error: 'unrevoke needs an operator name: bringing an agent back is a deliberate, audited action' };
+  // Judged AFTER masking: a name made only of invisible or control characters is empty.
+  if (kind === 'unrevoke' && (typeof body.operator !== 'string' || maskText(body.operator) === '')) return { error: 'unrevoke needs an operator name: bringing an agent back is a deliberate, audited action' };
   if (kind === 'kill' && body.inFlight !== undefined && body.inFlight !== 'finish' && body.inFlight !== 'cancel') return { error: 'inFlight must be "finish" or "cancel"' };
   if (kind === 'unrevoke' && body.resetBudget !== undefined && typeof body.resetBudget !== 'boolean') return { error: 'resetBudget must be true or false' };
   return { value: body };
@@ -43,47 +46,48 @@ function buildApi(runtime) {
     const api = express.Router();
     api.use(express.json({ limit: '2kb' }));
 
-    api.get('/scenarios', (_req, res) => res.json({ mode: runtime.mode, scenarios: runtime.scenarios.map(describeScenario) }));
-    api.post('/scenarios/:id/run', (req, res) => {
+    // Every known route answers a wrong method with 405 and an Allow header (never the 404 for a path that exists).
+    api.route('/scenarios').get((_req, res) => res.json({ mode: runtime.mode, scenarios: runtime.scenarios.map(describeScenario) })).all(methods('GET'));
+    api.route('/scenarios/:id/run').post((req, res) => {
       if (!ID_RE.test(req.params.id) || !getScenario(req.params.id)) return bad(res, 'no such scenario', 404);
       if (req.body && Object.keys(req.body).length) return bad(res, 'running a scenario takes no parameters');
       const run = runtime.runScenario(req.params.id);
       if (run.error) return res.status(409).json({ error: run.error, killed: run.killed, message: KILL_IN_FORCE });
       res.json({ mode: runtime.mode, run, state: runtime.snapshot() });
-    });
-    api.post('/scenarios/:id/step', (req, res) => {
+    }).all(methods('POST'));
+    api.route('/scenarios/:id/step').post((req, res) => {
       if (!ID_RE.test(req.params.id) || !getScenario(req.params.id)) return bad(res, 'no such scenario', 404);
       if (req.body && Object.keys(req.body).length) return bad(res, 'stepping a scenario takes no parameters');
       const r = runtime.stepScenario(req.params.id);
       if (r.error === 'kill_in_force') return res.status(409).json({ error: r.error, killed: r.killed, message: KILL_IN_FORCE });
       if (r.error) return res.status(409).json({ error: r.error, message: 'this run has finished: POST /run to run it again, or POST /api/reset' });
       res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
-    });
+    }).all(methods('POST'));
 
-    api.get('/agents', (_req, res) => res.json({ mode: runtime.mode, agents: runtime.gateway.agents(), global: runtime.gateway.global(), models: MODELS, tools: TOOLS }));
-    api.get('/state', (_req, res) => res.json(runtime.snapshot()));
+    api.route('/agents').get((_req, res) => res.json({ mode: runtime.mode, agents: runtime.gateway.agents(), global: runtime.gateway.global(), models: MODELS, tools: TOOLS })).all(methods('GET'));
+    api.route('/state').get((_req, res) => res.json(runtime.snapshot())).all(methods('GET'));
 
     // Operator endpoints. State-changing, so the CSRF guard above applies: a page on another origin cannot reach them.
-    api.post('/kill', (req, res) => {
+    api.route('/kill').post((req, res) => {
       const { value, error } = operatorBody(req.body, 'kill');
       if (error) return bad(res, error);
       const r = runtime.kill(value);
       if (!r.ok) return res.status(r.status).json({ error: r.error });
       res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
-    });
-    api.post('/unrevoke', (req, res) => {
+    }).all(methods('POST'));
+    api.route('/unrevoke').post((req, res) => {
       const { value, error } = operatorBody(req.body, 'unrevoke');
       if (error) return bad(res, error);
       const r = runtime.unrevoke(value);
       if (!r.ok) return res.status(r.status).json({ error: r.error });
       res.json({ mode: runtime.mode, ...r, state: runtime.snapshot() });
-    });
+    }).all(methods('POST'));
 
-    api.get('/events', (req, res) => {
+    api.route('/events').get((req, res) => {
       const since = uint(req.query.since); const limit = uint(req.query.limit ?? '200', 500);
       if (since === null || limit === null || limit < 1) return bad(res, 'since and limit must be small non-negative integers');
       res.json({ mode: runtime.mode, ...runtime.events.list({ since, limit }) });
-    });
+    }).all(methods('GET'));
 
     // The audit trail is read-only through the API: GET only.
     api.route('/audit').get((req, res) => {
@@ -93,11 +97,13 @@ function buildApi(runtime) {
     }).all(methods('GET'));
     api.route('/audit/verify').get((_req, res) => res.json({ mode: runtime.mode, ...runtime.audit.verify() })).all(methods('GET'));
 
-    api.post('/reset', (req, res) => {
+    api.route('/reset').post((req, res) => {
       if (req.body && Object.keys(req.body).length) return bad(res, 'POST /api/reset takes no parameters');
       runtime.reset();
       res.json({ ok: true, mode: runtime.mode });
-    });
+    }).all(methods('POST'));
+
+    api.use('/fedid', fedidRoutes(runtime));
 
     api.use((_req, res) => bad(res, 'no such endpoint', 404));
     api.use((err, _req, res, _next) => {
@@ -134,7 +140,12 @@ export function createApp({ runtime = null, workspaces = null, health = createHe
   // The health probe is shared and reads no workspace state, so it does not create one.
   app.use('/api/health', health.router);
   const ws = runtime ? null : (workspaces || createWorkspaces());
-  app.use('/api', (req, res, next) => routerFor(runtime ?? ws.resolve(req, res))(req, res, next));
+  app.use('/api', (req, res, next) => {
+    const rt = runtime ?? ws.resolve(req, res);
+    // The registry is full of other visitors' workspaces: refuse rather than evict one of them (an eviction would silently undo their revoke).
+    if (rt === null) return res.status(503).set('Retry-After', '600').json({ error: 'too_many_workspaces', message: 'this server is holding as many visitor workspaces as it allows: try again later' });
+    return routerFor(rt)(req, res, next);
+  });
   app.use((_req, res) => bad(res, 'no such endpoint', 404));
   app.use((err, _req, res, _next) => (err instanceof URIError || err.status === 400 ? bad(res, 'malformed request') : res.status(500).json({ error: 'server_error' })));
   return app;

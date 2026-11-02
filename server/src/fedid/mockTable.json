@@ -1,0 +1,1370 @@
+{
+  "schema": "fedid-mock/1",
+  "note": "Generated from the engine (signing: mock) by scripts/build-fedid-mock.mjs. Do not edit by hand: a test regenerates it and compares.",
+  "storyLength": 18,
+  "steps": [
+    {
+      "step": 1,
+      "t": "request",
+      "say": "The {{castTeam}} billing agent calls an MCP server on the {{castHost}}.example gateway with its platform token: allowed.",
+      "result": {
+        "n": 1,
+        "at": "2026-11-02T09:00:02.000Z",
+        "workload": "fi-billing-agent",
+        "service": "mcp",
+        "via": "token",
+        "minted": true,
+        "decision": "allowed",
+        "reason": null,
+        "status": 200,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 2,
+          "issuerReachable": true
+        },
+        "backend": {
+          "credentialId": "cred:app-mcp-static",
+          "kind": "static",
+          "workloadTokenForwarded": false
+        },
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610002,
+            "exp": 1793610602,
+            "jti": "jti-0001"
+          },
+          "remainingSec": 600,
+          "fingerprint": "e0e14f2e859b"
+        }
+      }
+    },
+    {
+      "step": 2,
+      "t": "request",
+      "say": "The same identity reaches a peer agent: allowed. Only the scopes differ between service families.",
+      "result": {
+        "n": 2,
+        "at": "2026-11-02T09:00:04.000Z",
+        "workload": "fi-billing-agent",
+        "service": "a2a",
+        "via": "token",
+        "minted": false,
+        "decision": "allowed",
+        "reason": null,
+        "status": 200,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 4,
+          "issuerReachable": true
+        },
+        "backend": {
+          "credentialId": "cred:app-a2a-vault",
+          "kind": "per-user vault",
+          "workloadTokenForwarded": false
+        },
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610002,
+            "exp": 1793610602,
+            "jti": "jti-0001"
+          },
+          "remainingSec": 598,
+          "fingerprint": "e0e14f2e859b"
+        }
+      }
+    },
+    {
+      "step": 3,
+      "t": "request",
+      "say": "And an LLM provider: allowed.",
+      "result": {
+        "n": 3,
+        "at": "2026-11-02T09:00:06.000Z",
+        "workload": "fi-billing-agent",
+        "service": "llm",
+        "via": "token",
+        "minted": false,
+        "decision": "allowed",
+        "reason": null,
+        "status": 200,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 6,
+          "issuerReachable": true
+        },
+        "backend": {
+          "credentialId": "cred:app-llm-oauth",
+          "kind": "OAuth",
+          "workloadTokenForwarded": false
+        },
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610002,
+            "exp": 1793610602,
+            "jti": "jti-0001"
+          },
+          "remainingSec": 596,
+          "fingerprint": "e0e14f2e859b"
+        }
+      }
+    },
+    {
+      "step": 4,
+      "t": "request",
+      "say": "An agent access key that names this identity as its principal: allowed.",
+      "result": {
+        "n": 4,
+        "at": "2026-11-02T09:00:08.000Z",
+        "workload": "fi-billing-agent",
+        "service": "mcp",
+        "via": "key",
+        "minted": false,
+        "decision": "allowed",
+        "reason": null,
+        "status": 200,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "key_principal",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 8,
+          "issuerReachable": true
+        },
+        "backend": {
+          "credentialId": "cred:app-mcp-static",
+          "kind": "static",
+          "workloadTokenForwarded": false
+        },
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610002,
+            "exp": 1793610602,
+            "jti": "jti-0001"
+          },
+          "remainingSec": 594,
+          "fingerprint": "e0e14f2e859b"
+        }
+      }
+    },
+    {
+      "step": 5,
+      "t": "request",
+      "say": "A second identity, the {{castBrand}} nightly job, works too.",
+      "result": {
+        "n": 5,
+        "at": "2026-11-02T09:00:10.000Z",
+        "workload": "fi-nightly-job",
+        "service": "mcp",
+        "via": "token",
+        "minted": true,
+        "decision": "allowed",
+        "reason": null,
+        "status": 200,
+        "deployment": {
+          "identity": "fi-nightly-job",
+          "subject": "repo:example-org/shop:ref:refs/heads/main"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "ci",
+          "source": "cache",
+          "ageSec": 10,
+          "issuerReachable": true
+        },
+        "backend": {
+          "credentialId": "cred:app-mcp-static",
+          "kind": "static",
+          "workloadTokenForwarded": false
+        },
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "ci-signing-1"
+          },
+          "claims": {
+            "iss": "https://token.ci.example",
+            "sub": "repo:example-org/shop:ref:refs/heads/main",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610010,
+            "exp": 1793610610,
+            "jti": "jti-0002"
+          },
+          "remainingSec": 600,
+          "fingerprint": "096b4c2cb3f3"
+        }
+      }
+    },
+    {
+      "step": 6,
+      "t": "request",
+      "say": "The nightly job has no A2A scope: refused for a different reason than a revoke (403 scope_missing).",
+      "result": {
+        "n": 6,
+        "at": "2026-11-02T09:00:12.000Z",
+        "workload": "fi-nightly-job",
+        "service": "a2a",
+        "via": "token",
+        "minted": false,
+        "decision": "refused",
+        "reason": "scope_missing",
+        "status": 403,
+        "deployment": {
+          "identity": "fi-nightly-job",
+          "subject": "repo:example-org/shop:ref:refs/heads/main"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": false,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "ci",
+          "source": "cache",
+          "ageSec": 12,
+          "issuerReachable": true
+        },
+        "backend": null,
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "ci-signing-1"
+          },
+          "claims": {
+            "iss": "https://token.ci.example",
+            "sub": "repo:example-org/shop:ref:refs/heads/main",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610010,
+            "exp": 1793610610,
+            "jti": "jti-0002"
+          },
+          "remainingSec": 598,
+          "fingerprint": "096b4c2cb3f3"
+        }
+      }
+    },
+    {
+      "step": 7,
+      "t": "revoke",
+      "say": "An operator ({{castOperator}}) revokes the billing identity.",
+      "ok": true,
+      "workload": "fi-billing-agent"
+    },
+    {
+      "step": 8,
+      "t": "request",
+      "say": "The very next request from the billing agent is refused. Its token is still valid; the identity is not.",
+      "result": {
+        "n": 7,
+        "at": "2026-11-02T09:00:15.000Z",
+        "workload": "fi-billing-agent",
+        "service": "mcp",
+        "via": "token",
+        "minted": false,
+        "decision": "refused",
+        "reason": "identity_revoked",
+        "status": 403,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": false,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 15,
+          "issuerReachable": true
+        },
+        "backend": null,
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610002,
+            "exp": 1793610602,
+            "jti": "jti-0001"
+          },
+          "remainingSec": 587,
+          "fingerprint": "e0e14f2e859b"
+        }
+      }
+    },
+    {
+      "step": 9,
+      "t": "request",
+      "say": "The same identity is cut off from the peer-agent service too.",
+      "result": {
+        "n": 8,
+        "at": "2026-11-02T09:00:16.000Z",
+        "workload": "fi-billing-agent",
+        "service": "a2a",
+        "via": "token",
+        "minted": false,
+        "decision": "refused",
+        "reason": "identity_revoked",
+        "status": 403,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": false,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 16,
+          "issuerReachable": true
+        },
+        "backend": null,
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610002,
+            "exp": 1793610602,
+            "jti": "jti-0001"
+          },
+          "remainingSec": 586,
+          "fingerprint": "e0e14f2e859b"
+        }
+      }
+    },
+    {
+      "step": 10,
+      "t": "request",
+      "say": "And from the LLM service: one revoke, every service family.",
+      "result": {
+        "n": 9,
+        "at": "2026-11-02T09:00:17.000Z",
+        "workload": "fi-billing-agent",
+        "service": "llm",
+        "via": "token",
+        "minted": false,
+        "decision": "refused",
+        "reason": "identity_revoked",
+        "status": 403,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": false,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 17,
+          "issuerReachable": true
+        },
+        "backend": null,
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610002,
+            "exp": 1793610602,
+            "jti": "jti-0001"
+          },
+          "remainingSec": 585,
+          "fingerprint": "e0e14f2e859b"
+        }
+      }
+    },
+    {
+      "step": 11,
+      "t": "request",
+      "say": "The key that names the revoked identity is refused as well.",
+      "result": {
+        "n": 10,
+        "at": "2026-11-02T09:00:18.000Z",
+        "workload": "fi-billing-agent",
+        "service": "mcp",
+        "via": "key",
+        "minted": false,
+        "decision": "refused",
+        "reason": "identity_revoked",
+        "status": 403,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": false,
+            "tag": "lab reading"
+          },
+          {
+            "id": "key_principal",
+            "ok": false,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 18,
+          "issuerReachable": true
+        },
+        "backend": null,
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610002,
+            "exp": 1793610602,
+            "jti": "jti-0001"
+          },
+          "remainingSec": 584,
+          "fingerprint": "e0e14f2e859b"
+        }
+      }
+    },
+    {
+      "step": 12,
+      "t": "request",
+      "say": "The nightly job is untouched: allowed.",
+      "result": {
+        "n": 11,
+        "at": "2026-11-02T09:00:19.000Z",
+        "workload": "fi-nightly-job",
+        "service": "mcp",
+        "via": "token",
+        "minted": false,
+        "decision": "allowed",
+        "reason": null,
+        "status": 200,
+        "deployment": {
+          "identity": "fi-nightly-job",
+          "subject": "repo:example-org/shop:ref:refs/heads/main"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "ci",
+          "source": "cache",
+          "ageSec": 19,
+          "issuerReachable": true
+        },
+        "backend": {
+          "credentialId": "cred:app-mcp-static",
+          "kind": "static",
+          "workloadTokenForwarded": false
+        },
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "ci-signing-1"
+          },
+          "claims": {
+            "iss": "https://token.ci.example",
+            "sub": "repo:example-org/shop:ref:refs/heads/main",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793610010,
+            "exp": 1793610610,
+            "jti": "jti-0002"
+          },
+          "remainingSec": 591,
+          "fingerprint": "096b4c2cb3f3"
+        }
+      }
+    },
+    {
+      "step": 13,
+      "t": "advance",
+      "say": "Time passes. The billing token has expired and the key set is more than 15 minutes old.",
+      "ok": true,
+      "seconds": 1000
+    },
+    {
+      "step": 14,
+      "t": "request",
+      "say": "The platform minted a fresh, valid token (it knows nothing of the revoke). The gateway still refuses the identity.",
+      "result": {
+        "n": 12,
+        "at": "2026-11-02T09:16:59.000Z",
+        "workload": "fi-billing-agent",
+        "service": "mcp",
+        "via": "token",
+        "minted": true,
+        "decision": "refused",
+        "reason": "identity_revoked",
+        "status": 403,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": false,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "refreshed",
+          "ageSec": 0,
+          "issuerReachable": true
+        },
+        "backend": null,
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793611019,
+            "exp": 1793611619,
+            "jti": "jti-0003"
+          },
+          "remainingSec": 600,
+          "fingerprint": "2feb10b17478"
+        }
+      }
+    },
+    {
+      "step": 15,
+      "t": "issuer",
+      "say": "The platform issuer stops answering.",
+      "ok": true,
+      "outage": true
+    },
+    {
+      "step": 16,
+      "t": "advance",
+      "say": "More time passes with the issuer down.",
+      "ok": true,
+      "seconds": 1000
+    },
+    {
+      "step": 17,
+      "t": "request",
+      "say": "The nightly job still works: the gateway keeps the last known good key set through the outage.",
+      "result": {
+        "n": 13,
+        "at": "2026-11-02T09:33:39.000Z",
+        "workload": "fi-nightly-job",
+        "service": "mcp",
+        "via": "token",
+        "minted": true,
+        "decision": "allowed",
+        "reason": null,
+        "status": 200,
+        "deployment": {
+          "identity": "fi-nightly-job",
+          "subject": "repo:example-org/shop:ref:refs/heads/main"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": true,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "ci",
+          "source": "cache",
+          "ageSec": 2019,
+          "issuerReachable": false
+        },
+        "backend": {
+          "credentialId": "cred:app-mcp-static",
+          "kind": "static",
+          "workloadTokenForwarded": false
+        },
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "ci-signing-1"
+          },
+          "claims": {
+            "iss": "https://token.ci.example",
+            "sub": "repo:example-org/shop:ref:refs/heads/main",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793612019,
+            "exp": 1793612619,
+            "jti": "jti-0004"
+          },
+          "remainingSec": 600,
+          "fingerprint": "59ff485e0ca7"
+        }
+      }
+    },
+    {
+      "step": 18,
+      "t": "request",
+      "say": "The revoked identity is still refused during the outage: an outage does not bring it back.",
+      "result": {
+        "n": 14,
+        "at": "2026-11-02T09:33:39.000Z",
+        "workload": "fi-billing-agent",
+        "service": "mcp",
+        "via": "token",
+        "minted": true,
+        "decision": "refused",
+        "reason": "identity_revoked",
+        "status": 403,
+        "deployment": {
+          "identity": "fi-billing-agent",
+          "subject": "system:serviceaccount:payments:billing-agent"
+        },
+        "tokenStillValid": true,
+        "checks": [
+          {
+            "id": "alg",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "signature",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "lifetime",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "expiry",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "binding",
+            "ok": true,
+            "tag": "deck claim"
+          },
+          {
+            "id": "identity_state",
+            "ok": false,
+            "tag": "lab reading"
+          },
+          {
+            "id": "scope",
+            "ok": true,
+            "tag": "deck claim"
+          }
+        ],
+        "keySet": {
+          "issuer": "k8s",
+          "source": "cache",
+          "ageSec": 1000,
+          "issuerReachable": false
+        },
+        "backend": null,
+        "token": {
+          "header": {
+            "alg": "RS256",
+            "typ": "JWT",
+            "kid": "k8s-signing-1"
+          },
+          "claims": {
+            "iss": "https://cluster.k8s.example",
+            "sub": "system:serviceaccount:payments:billing-agent",
+            "aud": "https://gateway.privilege.example",
+            "iat": 1793612019,
+            "exp": 1793612619,
+            "jti": "jti-0005"
+          },
+          "remainingSec": 600,
+          "fingerprint": "38c3e3647158"
+        }
+      }
+    }
+  ],
+  "final": {
+    "now": "2026-11-02T09:33:39.000Z",
+    "identities": [
+      {
+        "id": "fi-billing-agent",
+        "label": "Billing agent",
+        "platform": "kubernetes",
+        "issuer": "https://cluster.k8s.example",
+        "subject": "system:serviceaccount:payments:billing-agent",
+        "audience": "https://gateway.privilege.example",
+        "scopes": [
+          "mcp",
+          "a2a",
+          "llm"
+        ],
+        "maxLifetimeSec": 3600,
+        "state": "revoked",
+        "revokedAt": "2026-11-02T09:00:14.000Z",
+        "revokedBy": "{{castOperator}}",
+        "note": "suspected compromise",
+        "key": "key-billing",
+        "summary": {
+          "revoked": true,
+          "afterRevoke": {
+            "requests": 6,
+            "allowed": 0,
+            "refused": 6,
+            "refusedAndAttributed": 6,
+            "tokenStillValid": 6,
+            "reminted": 2,
+            "firstDecision": {
+              "decision": "refused",
+              "reason": "identity_revoked",
+              "n": 7
+            }
+          },
+          "sinceFirstRevoke": {
+            "requests": 6,
+            "allowed": 0
+          },
+          "matrix": [
+            {
+              "service": "mcp",
+              "via": "token",
+              "decision": "refused",
+              "reason": "identity_revoked",
+              "status": 403
+            },
+            {
+              "service": "mcp",
+              "via": "key",
+              "decision": "refused",
+              "reason": "identity_revoked",
+              "status": 403
+            },
+            {
+              "service": "a2a",
+              "via": "token",
+              "decision": "refused",
+              "reason": "identity_revoked",
+              "status": 403
+            },
+            {
+              "service": "a2a",
+              "via": "key",
+              "decision": null,
+              "reason": null,
+              "status": null
+            },
+            {
+              "service": "llm",
+              "via": "token",
+              "decision": "refused",
+              "reason": "identity_revoked",
+              "status": 403
+            },
+            {
+              "service": "llm",
+              "via": "key",
+              "decision": null,
+              "reason": null,
+              "status": null
+            }
+          ]
+        }
+      },
+      {
+        "id": "fi-nightly-job",
+        "label": "Nightly job",
+        "platform": "github-actions",
+        "issuer": "https://token.ci.example",
+        "subject": "repo:example-org/shop:ref:refs/heads/main",
+        "audience": "https://gateway.privilege.example",
+        "scopes": [
+          "mcp",
+          "llm"
+        ],
+        "maxLifetimeSec": 3600,
+        "state": "active",
+        "revokedAt": null,
+        "revokedBy": null,
+        "note": null,
+        "key": null,
+        "summary": {
+          "revoked": false,
+          "afterRevoke": null,
+          "sinceFirstRevoke": {
+            "requests": 2,
+            "allowed": 2
+          },
+          "matrix": [
+            {
+              "service": "mcp",
+              "via": "token",
+              "decision": null,
+              "reason": null,
+              "status": null
+            },
+            {
+              "service": "a2a",
+              "via": "token",
+              "decision": null,
+              "reason": null,
+              "status": null
+            },
+            {
+              "service": "llm",
+              "via": "token",
+              "decision": null,
+              "reason": null,
+              "status": null
+            }
+          ]
+        }
+      }
+    ],
+    "forwardedTokens": 0,
+    "keySets": {
+      "k8s": {
+        "ageSec": 1000,
+        "refreshEverySec": 900
+      },
+      "ci": {
+        "ageSec": 2019,
+        "refreshEverySec": 900
+      }
+    },
+    "issuerOutage": true
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "schema": "diagram-studio/1",
+  "id": "fedid-revoke",
+  "title": "Revoking a Federated Identity cuts the workload off",
+  "lede": "A workload presents the token its platform issued. The gateway verifies it on every request and reads the identity's state. After the operator revokes the identity the token is still valid, but the next request is refused. Ping release claim, UNVERIFIED on our tenant. Simulated.",
+  "groups": {
+    "platform": { "label": "Platform", "color": "grey" },
+    "workload": { "label": "Workload", "color": "blue" },
+    "ping": { "label": "Gateway and registry", "color": "red" },
+    "backend": { "label": "Backend and record", "color": "dark" },
+    "people": { "label": "Operator", "color": "amber" }
+  },
+  "nodes": [
+    { "id": "platform", "label": "Platform (Kubernetes, CI)", "group": "platform", "x": 0, "y": 0 },
+    { "id": "issuer", "label": "Issuer key set (cached)", "group": "platform", "x": 480, "y": 0 },
+    { "id": "registry", "label": "Federated Identity registry", "group": "ping", "x": 960, "y": 280 },
+    { "id": "workload", "label": "Workload with its platform token", "group": "workload", "x": 0, "y": 280 },
+    { "id": "gateway", "label": "Gateway: verify every request", "group": "ping", "x": 480, "y": 280 },
+    { "id": "backend", "label": "Backend with the app's own credential", "group": "backend", "x": 960, "y": 560 },
+    { "id": "audit", "label": "Audit: attributed to the deployment", "group": "backend", "x": 480, "y": 560 },
+    { "id": "operator", "label": "Operator", "group": "people", "x": 960, "y": 0 }
+  ],
+  "edges": [
+    { "source": "platform", "target": "workload", "label": "issues a short-lived token" },
+    { "source": "workload", "target": "gateway", "label": "request + token" },
+    { "source": "gateway", "target": "issuer", "label": "verify signature" },
+    { "source": "gateway", "target": "registry", "label": "exact binding, identity active?" },
+    { "source": "gateway", "target": "backend", "label": "allowed: app's credential, token not forwarded" },
+    { "source": "gateway", "target": "audit", "label": "every decision, attributed" },
+    { "source": "operator", "target": "registry", "label": "revoke the identity" },
+    { "source": "registry", "target": "gateway", "label": "state: revoked", "dashed": true },
+    { "source": "gateway", "target": "workload", "label": "next request: refused", "dashed": true }
+  ],
+  "steps": [
+    { "title": "The platform issues a token", "what": "A Kubernetes service account or a CI job gets a short-lived token from its own platform. Nothing long-lived is stored in the workload.", "edges": [0] },
+    { "title": "The workload calls the gateway", "what": "Every request carries the platform token. The same identity can reach MCP servers, peer agents and LLM providers; scopes tell them apart.", "edges": [1] },
+    { "title": "The gateway checks the signature", "what": "It verifies the token against the issuer's key set. The set is cached and refreshed every 15 minutes (the deck); during an outage the last known good set is used.", "edges": [2] },
+    { "title": "The gateway checks the identity", "what": "Issuer, subject and audience must match a registered Federated Identity exactly, and the identity must be active. This state is read on every request.", "edges": [3] },
+    { "title": "Allowed: the backend gets its own credential", "what": "The token stops at the gateway. The backend receives the application's own configured credential, never the workload's token.", "edges": [4] },
+    { "title": "Every decision is recorded", "what": "Each request is written to the audit trail with the identity and the deployment (subject) it came from.", "edges": [5] },
+    { "title": "The operator revokes the identity", "what": "One action on the identity. Nothing is sent to the workload or to the platform.", "edges": [6] },
+    { "title": "The gateway reads the new state", "what": "On the next request the registry says revoked. This is how the lab reads the deck's word immediately; the deck gives no number.", "edges": [7] },
+    { "title": "The next request is refused", "what": "The token is still valid (signature, binding, lifetime), but the identity is not, so the answer is 403. The refusal is attributed to the same deployment.", "edges": [8] }
+  ]
+}

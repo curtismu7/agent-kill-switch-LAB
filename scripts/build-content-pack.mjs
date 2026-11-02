@@ -19,7 +19,7 @@ export const PACK_PATH = path.join(ROOT, 'content-pack.json');
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
 const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
-// The UI is one page with no deep links, so every card opens the app root.
+// The kill-switch cards open the app root; the Federated Identity cards open its tab (#federated-identity).
 const CARDS = [
   { id: 'rate-loop', label: 'A loop blows the rate cap', description: 'Run the rate-loop scenario and watch the sixth call in ten seconds trip the agent, then every later call get refused.', group: 'try-it', href: '/', terms: ['rate-cap', 'sliding-window', 'trip', 'agent-state'], story: 'S02' },
   { id: 'cost-expensive', label: 'An expensive prompt blows the cost cap', description: 'Run cost-expensive and watch the money budget burn down until a call would cross it.', group: 'try-it', href: '/', terms: ['cost-cap', 'trip'], story: 'S02' },
@@ -28,6 +28,8 @@ const CARDS = [
   { id: 'in-flight', label: 'The kill lands on a running call', description: 'Run in-flight and see what happens to a call already admitted when the stop lands.', group: 'try-it', href: '/', terms: ['in-flight'], story: 'S04' },
   { id: 'gap', label: 'Why short token lifetimes matter', description: 'Run stale-token-gap and read the timeline from the revoke to the first refused call.', group: 'try-it', href: '/', terms: ['revocation-gap', 'short-lived-token'], story: 'S03' },
   { id: 'blast-radius', label: 'Two agents, one killed', description: 'Run blast-radius: only alpha stops, beta carries on.', group: 'try-it', href: '/', terms: ['blast-radius', 'agent-state'], story: 'S02' },
+  { id: 'fedid-revoke', label: 'Revoke a Federated Identity (H2 2026 update)', description: 'Mock table or Live engine: revoke the billing identity and watch its very next request be refused although its platform token is still valid. Ping release claim, UNVERIFIED on our tenant; every claim is tagged.', group: 'try-it', href: '/#federated-identity', terms: ['federated-identity', 'platform-issued-token', 'identity-revoke', 'exact-binding', 'key-set-refresh'], story: 'S04' },
+  { id: 'fedid-why', label: 'Why Federated Identity matters (Ping claims)', description: 'Challenge: stored API keys outlive workloads and stay valid if they leak, so standing-secret findings block agent rollout. Technical: secretless, exactly bound, short-lived tokens verified per request and instantly revocable. Business: standing-secret audit findings close and unattended agents can be approved. From slide 40 of the H2 2026 deck, UNVERIFIED on our tenant.', group: 'reference', href: '/#federated-identity', terms: ['federated-identity', 'claim-tags'], story: 'S03' },
   { id: 'flow', label: 'Where each call goes', description: 'Agent, revocation check, rate cap, cost cap and tools as a movable diagram with Simulate, plus the token service and the kill switch.', group: 'concept', href: '/', terms: ['kill-switch', 'demo-mode', 'inert-text'], story: 'S01' },
 ];
 
@@ -41,11 +43,11 @@ export function buildPack({ commit } = {}) {
     title: 'Agent Kill Switch',
     version: pkg.version,
     ...(commit ? { source: { repo: 'agent-kill-switch', commit } } : {}),
-    demo: { id: 'agent-kill-switch', name: 'Agent Kill Switch', catalog: 'D14', baseUrl: 'http://localhost:6550', doctor: '/api/health', tags: ['kill-switch', 'rate-cap', 'cost-cap', 'revoke', 'audit'] },
+    demo: { id: 'agent-kill-switch', name: 'Agent Kill Switch', catalog: 'D14', baseUrl: 'http://localhost:6550', doctor: '/api/health', tags: ['kill-switch', 'rate-cap', 'cost-cap', 'revoke', 'audit', 'federated-identity'] },
     glossary: readJson('content/terms.json').sort(byId),
     sources: [],
     cards: CARDS.map(({ href, ...c }) => ({ ...c, action: { type: 'route', href } })).sort(byId),
-    diagrams: [{ id: 'flow', label: 'Where each call goes', href: '/' }],
+    diagrams: [{ id: 'flow', label: 'Where each call goes', href: '/' }, { id: 'fedid-revoke', label: 'Revoking a Federated Identity cuts the workload off', href: '/#federated-identity' }],
     stories,
   };
   for (const c of pack.cards) if (c.story && !ids.has(c.story)) throw new Error(`card ${c.id} names unknown story ${c.story}`);

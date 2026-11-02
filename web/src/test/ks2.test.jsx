@@ -107,9 +107,10 @@ test("Step on a finished run says so only for run_finished", async () => {
   await waitFor(() => expect(screen.getByTestId("run-status")).toHaveTextContent(/This run has finished/));
 });
 
-test("under prefers-reduced-motion the diagram edges stop animating", () => {
-  const css = fs.readFileSync(path.resolve(process.cwd(), "src/app.css"), "utf8");
-  const block = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(css);
+test("under prefers-reduced-motion every animation and transition stops (the shared stylesheet's rule covers the diagram edges), and the app adds no animation of its own", () => {
+  const shared = fs.readFileSync(path.resolve(process.cwd(), "src/styles/standalone-ui.css"), "utf8");
+  const block = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(shared);
   expect(block).not.toBeNull();
-  expect(block[1]).toMatch(/react-flow__edge[\s\S]*animation: none/);
+  expect(block[1]).toMatch(/\*\s*\{[^}]*transition: none !important;[^}]*animation: none !important/);
+  for (const f of ["src/app.css", "src/fedid.css"]) expect(fs.readFileSync(path.resolve(process.cwd(), f), "utf8")).not.toMatch(/(^|[;{\s])animation\s*:/);
 });

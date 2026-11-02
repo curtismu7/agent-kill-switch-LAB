@@ -1,5 +1,19 @@
 # Changelog
 
+## Masking sweep fix (branch feat/h2-2026-release-updates)
+
+- One masker for both tabs (`server/src/mask.js`, replaces `fedid/mask.js`): C0/C1 controls deleted before matching (plus a second reading with them as spaces), keyword + plain space + value (with the documented false-positive tradeoff), URL userinfo without a scheme, JSON-quoted assignment, percent-decode three rounds, bounded. The Kill switch tab's `/api/kill` and `/api/unrevoke` used the weaker redactor and leaked all of these into the audit trail and event feed; they are now masked at write time.
+- Lengths are refused whole, never cut: operator 40, reason 200 (the Federated Identity revoke accepted 200 and 1,000 and silently cut). An unrevoke name is judged after masking.
+- HTTP: a wrong method on a known route (`GET /api/kill`, `POST /api/state`, ...) is 405 with `Allow`; a final JSON 404 and a JSON error handler (tested), no path echoed.
+- Tests: the sweep payloads typed into every field, key, query, path and header of the old and new endpoints of a real server process; literal boundary tests; mutants in `scripts/red-checks-fedid.mjs`. Test ports: `cast.test.js` had shared the Federated Identity slice with `fedid-api.test.js` (EADDRINUSE under load) and now has its own.
+
+## H2 2026 release update (branch feat/h2-2026-release-updates)
+
+- New tab **Federated Identity revoke** (deck "ID4AI Workforce - H2 2026", slide 40; slides 39 and 41 for context; only the revoke half of the kill-switch / audit-trail row). Mock table generated from the engine (drift and parity tests) and a Live local engine with real RS256 signing; claim tags per field; banner "Ping release claim, UNVERIFIED on our tenant" on every tab and in presenter mode (P / Esc); diagram as diagram-studio/1 data with Simulate, speed and Reset; what is cut, what stays valid, what the deck does not say; roadmap item (Agent Lifecycle Management, Q4 2026) shown without behaviour.
+- Server: `server/src/fedid/` and `/api/fedid/*`; audit entries `fedid_decision` and `fedid_revoke`; Reset also resets the new engine; the doctor checks the Mock table and the diagram; the hosted build refuses the Live endpoints.
+- Docs: README rewritten to the README standard, CLAUDE.md, safety.md, architecture.md, generated talk-track section (drift-tested), content pack (6 terms, 2 cards, 1 diagram).
+- Housekeeping needed for the rulebook: Node 26 (`engines`, CI), GitHub-hosted CI with forbidden-strings and gitleaks jobs, `docs/content-pack.schema.json` re-synced with the Learning Hub's copy (it had gained the optional `wire` block, which made a test fail), vitest timeout raised for a loaded machine.
+
 ## 0.1.0 (unreleased)
 
 - KS0: server core. Injectable clock; stub token service (short-lived tokens, revocation list, issuance switch); mock gateway with a sliding-window rate cap, a token and money cost cap, a per-call kill-switch check, token validation (introspect or local with a stale revocation list) and the armed / tripped / killed / reset state machine with a global switch; in-flight call semantics (finish or cancel); cooldown and auto-reset for rate trips; operator kill and unrevoke (audited); scripted runaway agent and nine scenarios; event cursor; HMAC hash-chained audit with verify; HTTP API; `GET /api/health` (`demo-health/1`); doctor; loopback-published Docker files; gitleaks pre-commit hook; red-check script. No web UI yet.

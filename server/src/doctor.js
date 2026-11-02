@@ -4,6 +4,9 @@ import { AGENTS, DEFAULT_GATEWAY, DEFAULT_LIMITS, MODELS, TOOLS } from './policy
 import { SCENARIOS } from './scenarios.js';
 import { PORT_MAX, PORT_MIN, assertBindAllowed, bindHost, portInRange, serverPort } from './safety.js';
 import { modeChecks } from './mode.js';
+import fs from 'node:fs';
+import { loadDiagram } from './fedid/diagram.js';
+import { MOCK_PATH, generateMock, serializeMock } from './fedid/mock.js';
 
 export function runChecks({ env = process.env } = {}) {
   const checks = [];
@@ -30,6 +33,13 @@ export function runChecks({ env = process.env } = {}) {
     if (!s.expect?.length) bad.push(`${s.id}: no expected end state`);
   }
   add('tables', bad.length === 0 ? 'pass' : 'fail', bad.length ? [...new Set(bad)].join('; ') : `${Object.keys(AGENTS).length} agents, ${Object.keys(TOOLS).length} tools, ${Object.keys(MODELS).length} models, ${SCENARIOS.length} scenarios, all with an expected end state`);
+
+  // The Federated Identity section: its generated Mock table matches the engine and its diagram data is valid diagram-studio/1.
+  try {
+    const fresh = fs.readFileSync(MOCK_PATH, 'utf8') === serializeMock(generateMock());
+    loadDiagram('fedid-revoke');
+    add('fedid', fresh ? 'pass' : 'fail', fresh ? 'Mock table matches the engine; diagram data is valid' : 'mockTable.json is stale: run npm run fedid-mock');
+  } catch (e) { add('fedid', 'fail', `Federated Identity section: ${e.message}`); }
 
   add('outbound', 'pass', 'no outbound settings: the gateway, token service and tools are in-process; no credential is accepted or sent');
   return checks;
