@@ -15,6 +15,7 @@ const doneRun = { id: "run-1", scenario: "normal", cursor: 6, total: 6, done: tr
 
 function setup(state = snapshot(), events = []) {
   api.getHealth.mockResolvedValue({ schema: "demo-health/1", state: "ready" });
+  api.getInfo.mockResolvedValue({ source: "mock", realAvailable: false, hosted: false, realReason: "Real mode is not available." });
   api.getScenarios.mockResolvedValue({ scenarios: SCEN });
   api.getState.mockResolvedValue(state);
   api.getEvents.mockImplementation(async (since) => { const out = events.filter((e) => e.seq > since); return { events: out, next: out.length ? out.at(-1).seq : since, head: events.length }; });

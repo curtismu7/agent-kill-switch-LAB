@@ -8,9 +8,12 @@ import { agent, ev, snapshot } from "./fixtures.js";
 vi.mock("../lib/api.js");
 const SCEN = [{ id: "normal", title: "Normal agent", summary: "s", teaches: "t", steps: 6, expect: [] }, { id: "manual-kill", title: "Manual kill mid-run", summary: "s2", teaches: "t2", steps: 7, expect: [] }];
 
+const MOCK_INFO = { source: "mock", realAvailable: false, hosted: false, realReason: "Real mode is not available: this demo is mock only by design and has no real server to call." };
+
 function setup({ state = snapshot(), events = [] } = {}) {
   let current = state; let evs = events; let head = events.length;
   api.getHealth.mockResolvedValue({ schema: "demo-health/1", state: "ready" });
+  api.getInfo.mockResolvedValue(MOCK_INFO);
   api.getScenarios.mockResolvedValue({ scenarios: SCEN });
   api.getState.mockImplementation(async () => current);
   api.getEvents.mockImplementation(async (since) => { const out = evs.filter((e) => e.seq > since); return { events: out, next: out.length ? out.at(-1).seq : since, head }; });
@@ -133,4 +136,61 @@ test("a local build shows no hosted banner", async () => {
   render(<App />);
   await screen.findByTestId("mode-badge");
   expect(screen.queryByTestId("hosted-banner")).toBeNull();
+});
+
+test("the Mock/Real toggle is in the header: Mock pressed, Real disabled with the server's reason as its tooltip", async () => {
+  setup();
+  const { container } = render(<App />);
+  const header = container.querySelector("header.top");
+  const mock = await within(header).findByRole("button", { name: "Mock" });
+  await waitFor(() => expect(mock).toHaveAttribute("aria-pressed", "true"));
+  const real = within(header).getByRole("button", { name: "Real" });
+  expect(real).toHaveAttribute("aria-pressed", "false");
+  expect(real).toBeDisabled();
+  expect(real).toHaveAttribute("title", expect.stringMatching(/no real server to call/));
+});
+
+test("the hosted build shows Mock pressed and Real disabled with the hosted reason", async () => {
+  setup();
+  api.getInfo.mockResolvedValue({ ...MOCK_INFO, hosted: true, realReason: "The hosted build is Mock only and cannot be switched." });
+  render(<App />);
+  const real = await screen.findByRole("button", { name: "Real" });
+  await waitFor(() => expect(screen.getByRole("button", { name: "Mock" })).toHaveAttribute("aria-pressed", "true"));
+  expect(real).toBeDisabled();
+  expect(real).toHaveAttribute("title", expect.stringMatching(/hosted build is Mock only/));
+});
+
+test("clicking the toggle POSTs the mode, then loads info, scenarios and state again; the pressed button follows", async () => {
+  setup();
+  let source = "real";
+  api.getInfo.mockImplementation(async () => ({ ...MOCK_INFO, realAvailable: true, source }));
+  api.setMode.mockImplementation(async (s) => { source = s; return { ...MOCK_INFO, realAvailable: true, source }; });
+  render(<App />);
+  const real = await screen.findByRole("button", { name: "Real" });
+  await waitFor(() => expect(real).toHaveAttribute("aria-pressed", "true"));
+  await screen.findByTestId("gauges-agent-alpha");
+  const before = { scenarios: api.getScenarios.mock.calls.length, state: api.getState.mock.calls.length, health: api.getHealth.mock.calls.length };
+  await userEvent.click(screen.getByRole("button", { name: "Mock" }));
+  expect(api.setMode).toHaveBeenCalledWith("mock");
+  await waitFor(() => expect(screen.getByRole("button", { name: "Mock" })).toHaveAttribute("aria-pressed", "true"));
+  await waitFor(() => expect(api.getScenarios.mock.calls.length).toBe(before.scenarios + 1));
+  expect(api.getHealth.mock.calls.length).toBe(before.health + 1);
+  expect(api.getState.mock.calls.length).toBeGreaterThan(before.state);
+  await userEvent.click(screen.getByRole("button", { name: "Real" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Real" })).toHaveAttribute("aria-pressed", "true"));
+  await waitFor(() => expect(api.getScenarios.mock.calls.length).toBe(before.scenarios + 2));
+});
+
+test("a refused switch (409) shows the server's message, loads nothing again and leaves the pressed button alone", async () => {
+  setup();
+  api.getInfo.mockResolvedValue({ ...MOCK_INFO, realAvailable: true });
+  api.setMode.mockRejectedValue(Object.assign(new Error("Real mode is not available: nothing to call."), { status: 409 }));
+  render(<App />);
+  const real = await screen.findByRole("button", { name: "Real" });
+  await waitFor(() => expect(real).toBeEnabled());
+  const before = api.getScenarios.mock.calls.length;
+  await userEvent.click(real);
+  await waitFor(() => expect(screen.getByText("Real mode is not available: nothing to call.")).toBeInTheDocument());
+  expect(screen.getByRole("button", { name: "Mock" })).toHaveAttribute("aria-pressed", "true");
+  expect(api.getScenarios.mock.calls.length).toBe(before);
 });
