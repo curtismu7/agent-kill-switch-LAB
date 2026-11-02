@@ -83,4 +83,4 @@ jobs:
           tar -xz -f "$f" gitleaks
           ./gitleaks version
       - name: Scan history
-        run: ./gitleaks detect --source . --redact --no-banner
+        run: ./gitleaks detect --source . --redact --no-banner --verbose
