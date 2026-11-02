@@ -1,0 +1,4 @@
+# Test fixtures, not secrets: the AWS documentation example key, a truncated dummy PEM and the base64 of ABCDEFG in a PEM frame (masking tests)
+b5ef4d4c300ac4224bbf887f142f190e3e4a0927:server/test/fedid-masking.test.js:aws-access-token:22
+b5ef4d4c300ac4224bbf887f142f190e3e4a0927:server/test/fedid-masking.test.js:private-key:23
+eeb7f0be068a0bfe080deefc1a19215ee370f1e2:server/test/ks2.test.js:private-key:119
