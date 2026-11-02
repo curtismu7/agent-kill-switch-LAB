@@ -3,14 +3,14 @@ on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   build:
-    # Set the RUNS_ON repository variable (a JSON array) to change the runner.
-    runs-on: ${{ fromJSON(vars.RUNS_ON || '["self-hosted","macOS"]') }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        # PRs test the newest Node only; main tests both supported versions.
-        node: ${{ github.event_name == 'pull_request' && fromJSON('[22]') || fromJSON('[20, 22]') }}
+        node: [26]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,7 +20,7 @@ jobs:
       - run: npm test
       - run: npm run build
   forbidden-strings:
-    runs-on: ${{ fromJSON(vars.RUNS_ON || '["self-hosted","macOS"]') }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +37,7 @@ jobs:
           echo "history hits: $hits, tree files: $files"
           test "$hits" = "0" && test "$files" = "0"
   secrets:
-    runs-on: ${{ fromJSON(vars.RUNS_ON || '["self-hosted","macOS"]') }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
