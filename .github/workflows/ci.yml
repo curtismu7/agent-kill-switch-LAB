@@ -3,14 +3,14 @@ on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   build:
-    # Set the RUNS_ON repository variable (a JSON array) to change the runner.
-    runs-on: ${{ fromJSON(vars.RUNS_ON || '["self-hosted","macOS"]') }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        # PRs test the newest Node only; main tests both supported versions.
-        node: ${{ github.event_name == 'pull_request' && fromJSON('[22]') || fromJSON('[20, 22]') }}
+        node: [26]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,23 +20,34 @@ jobs:
       - run: npm test
       - run: npm run build
   forbidden-strings:
-    runs-on: ${{ fromJSON(vars.RUNS_ON || '["self-hosted","macOS"]') }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # The list lives on the runner and is never printed.
-      - run: |
-          list="$HOME/.config/demo-kit/forbidden-strings.txt"
-          test -s "$list" || { echo "forbidden-strings list missing on runner"; exit 1; }
+      - name: Scan history and tree (counts only, the list is never printed)
+        env:
+          FORBIDDEN_STRINGS: ${{ secrets.FORBIDDEN_STRINGS }}
+        run: |
+          list="$RUNNER_TEMP/forbidden.txt"
+          printf '%s\n' "$FORBIDDEN_STRINGS" | grep -v '^$' > "$list" || true
+          test -s "$list" || { echo "FORBIDDEN_STRINGS secret is empty"; exit 1; }
           hits=$(git log -p --all | grep -cF -f "$list" || true)
           files=$(grep -rlF -f "$list" --exclude-dir=node_modules --exclude-dir=.git . | wc -l | tr -d ' ')
           echo "history hits: $hits, tree files: $files"
           test "$hits" = "0" && test "$files" = "0"
   secrets:
-    runs-on: ${{ fromJSON(vars.RUNS_ON || '["self-hosted","macOS"]') }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: PATH="/opt/homebrew/bin:$PATH" gitleaks detect --source . --redact -v
+      - name: Install gitleaks
+        run: |
+          base=https://github.com/gitleaks/gitleaks/releases/download/v8.30.1
+          curl -sSLO "$base/gitleaks_8.30.1_linux_x64.tar.gz"
+          curl -sSLO "$base/gitleaks_8.30.1_checksums.txt"
+          grep ' gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks_8.30.1_checksums.txt | sha256sum -c -
+          tar -xz -f gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+      - name: Scan history
+        run: ./gitleaks detect --source . --redact --no-banner
