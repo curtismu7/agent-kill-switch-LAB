@@ -145,6 +145,7 @@ test("hosted: Live is disabled and the Mock table is shown", async () => {
 function appSetup() {
   engineApi();
   api.getHealth.mockResolvedValue({ schema: "demo-health/1", state: "ready" });
+  api.getInfo.mockResolvedValue({ mode: "mock", realAvailable: true });
   api.getScenarios.mockResolvedValue({ scenarios: [{ id: "normal", title: "Normal agent", summary: "s", teaches: "t", steps: 6, expect: [] }] });
   api.getState.mockResolvedValue(snapshot());
   api.getEvents.mockResolvedValue({ events: [], next: 0, head: 0 });
