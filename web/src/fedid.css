@@ -1,0 +1,77 @@
+/* Federated Identity revoke section (H2 2026 update). Colours are the shared tokens (styles/standalone-ui.css) and the aliases in app.css: no colour literals, no important flags, no italics, breakpoints 600 and 900.
+   Signal colours always come with a word or a glyph. */
+.ks-pane { display: contents; }
+.ks-pane[hidden] { display: none; }
+.rel-banner { margin: 0; padding: 10px 14px; border: 2px solid var(--trip); border-left-width: 10px; border-radius: 6px; background: var(--trip-bg); color: var(--ink); font-size: .92rem; }
+.rel-banner[data-state="live"] { border-color: var(--reset); background: var(--reset-bg); }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+/* a selected tab or toggle (aria-pressed="true") is filled by the shared stylesheet */
+[data-presenter="true"] .no-present { display: none; }
+
+.fedid { display: grid; gap: 16px; min-width: 0; }
+.fedid__toolbar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-top: 10px; }
+.fedid__mode-note { flex: 1 1 260px; color: var(--muted); font-size: .88rem; }
+.fedid-seg { display: flex; gap: 8px; }
+.fedid[data-presenter="true"] { font-size: 1.12rem; }
+
+.claim-tag { display: inline-block; vertical-align: middle; padding: 1px 6px; border: 2px solid currentColor; border-radius: 3px; font: 700 .68rem var(--mono); letter-spacing: .03em; white-space: nowrap; }
+.claim-tag[data-tag="deck claim"] { color: var(--reset); }
+.claim-tag[data-tag="console swagger name (schema only)"], .claim-tag[data-tag="lab-invented"] { color: var(--muted); }
+.claim-tag[data-tag="lab reading"] { color: var(--trip); }
+.claim-tag[data-tag="measured (our note)"] { color: var(--armed); }
+.claim-tag[data-tag="roadmap"] { color: var(--kill); border-style: dashed; }
+
+.fedid-answer { font-weight: 700; white-space: nowrap; }
+.fedid-answer[data-decision="allowed"] { color: var(--armed); }
+.fedid-answer[data-decision="refused"] { color: var(--kill); }
+.fedid-scroll { overflow-x: auto; max-width: 100%; }
+.fedid-table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: .84rem; }
+.fedid-table--small { min-width: 0; }
+.fedid-table th, .fedid-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.fedid-table th { font: 700 .74rem var(--head); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.fedid-table tr[data-decision="refused"] { background: var(--kill-bg); }
+.fedid-table tr[data-event] { background: var(--panel2); }
+
+.fedid-form { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: end; margin: 10px 0; }
+.fedid-form input[type="text"], .fedid-form input[type="number"], .fedid-form select { width: 100%; }
+.fedid-result { padding: 4px 0 4px 12px; border-left: 6px solid var(--line); }
+.fedid-result[data-decision="allowed"] { border-left-color: var(--armed); }
+.fedid-result[data-decision="refused"] { border-left-color: var(--kill); }
+.fedid-result__head { margin: 0 0 6px; }
+.fedid-checks { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; }
+.fedid-checks li[data-ok="false"] { color: var(--kill); font-weight: 700; }
+.fedid-checks li[data-ok="true"] { color: var(--armed); }
+.fedid-token pre { overflow-x: auto; max-width: 100%; margin: 6px 0; padding: 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel2); font: .78rem var(--mono); }
+.fedid-raw { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.fedid-trio { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+@media (max-width: 900px) { .fedid-trio { grid-template-columns: minmax(0, 1fr); } }
+.fedid-card h3 { margin-bottom: .5rem; }
+.fedid-list { display: grid; gap: 10px; margin: 0; padding-left: 1.1rem; }
+.fedid-why { margin: 0; }
+.fedid-why dt { font-weight: 700; }
+.fedid-why dd { margin: 0 0 8px; }
+.fedid-measured { margin: 10px 0 0; }
+
+.fedid-stepbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.fedid-step { min-height: 3em; margin: 8px 0; }
+.fedid-canvas { height: 540px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); }
+@media (max-width: 600px) { .fedid-canvas { height: 420px; } }
+[data-presenter="true"] .fedid-canvas { height: 620px; }
+.fedid-node { position: relative; width: 190px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 4px; background: var(--panel); color: var(--ink); font-size: 12px; font-weight: 600; line-height: 1.3; }
+.fedid-node[data-color="red"] { border-color: var(--kill); background: var(--kill-bg); }
+.fedid-node[data-color="dark"] { background: var(--box-dark); color: var(--on-box); }
+.fedid-node[data-color="blue"] { border-color: var(--reset); background: var(--reset-bg); }
+.fedid-node[data-color="grey"] { background: var(--panel2); }
+.fedid-node[data-color="amber"] { border-color: var(--trip); background: var(--trip-bg); }
+.fedid-node[data-color="green"] { border-color: var(--armed); background: var(--armed-bg); }
+.fedid-node[data-on="true"] { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent); }
+.fedid-node__handle { opacity: 0; }
+.fedid-elabel { position: absolute; max-width: 150px; padding: 1px 5px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); color: var(--ink); font: 600 10.5px var(--body); text-align: center; pointer-events: none; }
+.fedid-elabel[data-now="true"] { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.fedid-elabel[data-dim="true"] { opacity: .35; }
+.fedid-edge--now .react-flow__edge-path { stroke: var(--accent); stroke-width: 3px; }
+.fedid-edge--dim .react-flow__edge-path { opacity: .3; }
+.fedid-edge--dashed .react-flow__edge-path { stroke-dasharray: 6 4; }
+/* Phone width: the diagram is held at half size, so its text is drawn twice as large to stay readable. Last in the file so it wins over the base sizes. */
+@media (max-width: 600px) { .fedid-node { font-size: 22px; } .fedid-elabel { font-size: 19px; max-width: 260px; } }

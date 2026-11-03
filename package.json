@@ -3,26 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Demo: how an organization stops a runaway AI agent. Rate and cost caps trip automatically, an operator revokes access, and the next call fails. Fully mocked; nothing real is touched.",
+  "description": "Demo: how an organization stops a runaway AI agent. Rate and cost caps trip automatically, an operator revokes access, and the next call fails. Fully mocked; nothing real is touched. H2 2026 update: a Federated Identity revoke tab (Mock table and Live local engine).",
   "license": "MIT",
   "workspaces": [
     "server",
     "web"
   ],
   "engines": {
-    "node": ">=20.12"
+    "node": ">=26"
   },
   "scripts": {
     "start": "npm start -w server",
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
-    "test": "npm test -w server && npm test -w web && node --test scripts/compose.test.mjs scripts/hooks.test.mjs scripts/docs.test.mjs scripts/doctor.test.mjs scripts/content-pack.test.mjs scripts/shelf-entry.test.mjs scripts/k8s.test.mjs",
+    "test": "npm test -w server && npm test -w web && node --test scripts/compose.test.mjs scripts/hooks.test.mjs scripts/docs.test.mjs scripts/doctor.test.mjs scripts/content-pack.test.mjs scripts/shelf-entry.test.mjs scripts/k8s.test.mjs scripts/fedid-docs.test.mjs scripts/css.test.mjs",
     "e2e": "node scripts/e2e.mjs",
     "doctor": "node scripts/doctor.mjs",
     "red-checks": "node scripts/red-checks.mjs",
     "red-checks-web": "node scripts/red-checks-web.mjs",
     "prepare": "git config core.hooksPath .githooks || true",
-    "content-pack": "node scripts/build-content-pack.mjs && node scripts/validate-content-pack.mjs"
+    "content-pack": "node scripts/build-content-pack.mjs && node scripts/validate-content-pack.mjs",
+    "e2e-fedid": "node scripts/e2e-fedid.mjs",
+    "fedid-mock": "node scripts/build-fedid-mock.mjs",
+    "talk-track": "node scripts/build-talk-track.mjs",
+    "red-checks-fedid": "node scripts/red-checks-fedid.mjs"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

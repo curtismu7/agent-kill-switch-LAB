@@ -31,7 +31,7 @@ const MUTATIONS = [
   ['Simulate resets over an operator kill', 'App.jsx', '(snap?.operatorKills?.length ?? 0) > 0', 'false'],
   ['any 409 on Step is reported as a finished run', 'App.jsx', 'e.code === "run_finished"', 'e.status === 409'],
   ['the feed is an ordered list with role=log again', 'components/Feed.jsx', '<div className="feed" role="log" tabIndex={0}', '<div className="feed" role="log"'],
-  ['edges keep animating under reduced motion', 'app.css', 'animation: none; }', 'animation: dashdraw 1s infinite; }'],
+  ['edges keep animating under reduced motion', 'styles/standalone-ui.css', 'animation: none !important', 'animation: dashdraw 1s infinite'],
 ];
 const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'ks-redweb-'));
 const web = path.join(copy, 'web');
@@ -39,6 +39,9 @@ const run = () => spawnSync(path.join(root, 'node_modules/.bin/vitest'), ['run']
 let bad = 0;
 try {
   fs.cpSync(path.join(root, 'web'), web, { recursive: true, filter: (s) => !s.includes('node_modules') && !s.includes('/dist') });
+  // The Federated Identity web tests drive the real engine, so the server sources sit beside web/ in the copy, with the same node_modules.
+  fs.cpSync(path.join(root, 'server'), path.join(copy, 'server'), { recursive: true, filter: (s) => !s.includes('node_modules') });
+  fs.symlinkSync(path.join(root, 'node_modules'), path.join(copy, 'node_modules'));
   fs.symlinkSync(path.join(root, 'node_modules'), path.join(web, 'node_modules'));
   const base = run();
   console.log(`${base.status === 0 ? 'PASS' : 'FAIL'}  baseline vitest (unmutated) exits ${base.status}`);

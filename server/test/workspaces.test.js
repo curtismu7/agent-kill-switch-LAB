@@ -80,17 +80,57 @@ test('the workspace cookie is HttpOnly and SameSite=Strict; Secure only in the h
   assert.match(hosted, /; Secure/);
 });
 
-test('memory is bounded: the least recently used workspace is dropped at the cap', () => {
+test('memory is bounded and nothing is evicted: at the cap a NEW workspace is refused, every existing one is kept', () => {
   const made = [];
   const ws = createWorkspaces({ cap: 2, make: () => { const rt = { n: made.length }; made.push(rt); return rt; } });
-  const res = { append() {} };
+  const set = []; const res = { append: (_k, v) => set.push(v) };
   const a = ws.resolve({ headers: {} }, res);
-  ws.resolve({ headers: {} }, res);
+  const b = ws.resolve({ headers: {} }, res);
   assert.equal(ws.size, 2);
+  const before = set.length;
+  assert.equal(ws.resolve({ headers: {} }, res), null, 'a third visitor is refused');
+  assert.equal(set.length, before, 'and is given no cookie for a workspace that was not created');
+  assert.equal(ws.size, 2);
+  assert.equal(made.length, 2, 'no third runtime was made');
+  const cookieA = set[0].split(';')[0]; const cookieB = set[1].split(';')[0];
+  assert.equal(ws.resolve({ headers: { cookie: cookieA } }, res), a, 'the first visitor still has their workspace');
+  assert.equal(ws.resolve({ headers: { cookie: cookieB } }, res), b, 'so does the second');
+  assert.equal(ws.resolve({ headers: { cookie: `${COOKIE}=${'f'.repeat(32)}` } }, res), null, 'a well-formed id this process has not seen is a new workspace, refused too');
+});
+
+test('an idle workspace is dropped only after the whole cookie lifetime, and that frees room for a new one', () => {
+  let t = 1_000_000;
+  const ws = createWorkspaces({ cap: 2, now: () => t, idleMs: 1000, make: () => ({}) });
+  const set = []; const res = { append: (_k, v) => set.push(v) };
+  ws.resolve({ headers: {} }, res); // at t
+  t += 600;
+  const b = ws.resolve({ headers: {} }, res);
+  t += 600; // the first is now idle for 1200 (> 1000); the second for 600
   const c = ws.resolve({ headers: {} }, res);
-  assert.equal(ws.size, 2, 'a third visitor does not grow the registry past the cap');
-  assert.equal(made.length, 3, 'three runtimes were made');
-  assert.notEqual(c, a, 'a new visitor gets a new runtime');
+  assert.notEqual(c, null, 'room was made by the idle one expiring');
+  assert.equal(ws.size, 2);
+  assert.equal(ws.resolve({ headers: { cookie: set[1].split(';')[0] } }, res), b, 'the recently used one is kept');
+  t += 500; // exactly idle 1100 for b? b was touched at t, so 500 idle
+  assert.equal(ws.resolve({ headers: {} }, res), null, 'both others are recent: the next new visitor is refused');
+});
+
+test('HTTP: a revoke survives a flood of cookie-less visitors; the visitor past the cap gets a JSON 503 and no cookie', async (t) => {
+  const port = await freePort('ws');
+  const ws = createWorkspaces({ cap: 5 });
+  const app = createApp({ workspaces: ws, health: createHealth({ runChecks: () => [], env: {} }) }).listen(port, '127.0.0.1');
+  t.after(() => new Promise((r) => app.close(r)));
+  const alice = await request(port, 'GET', '/api/fedid/state');
+  const ca = cookieOf(alice);
+  assert.equal((await request(port, 'POST', '/api/fedid/revoke', { body: { workload: 'fi-billing-agent', operator: 'ops' }, headers: { cookie: ca } })).status, 200);
+  const statuses = [];
+  for (let i = 0; i < 10; i += 1) statuses.push((await request(port, 'GET', '/api/fedid/state')).status);
+  assert.deepEqual(statuses, [200, 200, 200, 200, 503, 503, 503, 503, 503, 503], 'alice plus four others fill five places; the rest are refused');
+  const refused = await request(port, 'GET', '/api/fedid/state');
+  assert.deepEqual([refused.status, refused.json.error, cookieOf(refused)], [503, 'too_many_workspaces', null]);
+  assert.equal(refused.headers['retry-after'], '600');
+  const back = await request(port, 'GET', '/api/fedid/state', { headers: { cookie: ca } });
+  assert.equal(back.json.state.identities.find((i) => i.id === 'fi-billing-agent').state, 'revoked', 'alice is still revoked');
+  assert.equal((await request(port, 'GET', '/api/health')).status, 200, 'the health probe needs no workspace');
 });
 
 test('the hosted build refuses live and credential settings, an unset or invalid public host, and a wide bind', () => {

@@ -116,5 +116,5 @@ test('hostile operator text is stored inert and redacted', async (t) => {
   await call('POST', '/api/kill', { body: { scope: 'agent', agentId: A, operator: 'eve‮', reason: '<img src=x onerror=alert(1)> password=hunter2 ​' } });
   const e = (await call('GET', '/api/audit')).json.entries[0];
   assert.doesNotMatch(JSON.stringify(e), /hunter2|[‮​]/);
-  assert.match(e.data.operator, /\[U\+202E\]/);
+  assert.equal(e.data.operator, 'eve', 'the bidi control is deleted before the name is stored');
 });

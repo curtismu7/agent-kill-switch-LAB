@@ -339,7 +339,7 @@ test('unknown or hostile agent ids, tool names and notes are inert and redacted'
   w.gateway.kill({ agentId: A, operator: `op​`, reason: `${secret} authorization: hunter2` });
   const e = w.audit.list()[0];
   assert.doesNotMatch(JSON.stringify(e), /abcdef0123456789|hunter2|​/);
-  assert.match(e.data.operator, /\[U\+200B\]/);
+  assert.equal(e.data.operator, 'op', 'the zero-width space is deleted before the name is stored');
   assert.doesNotMatch(JSON.stringify(w.events.list()), /abcdef0123456789|hunter2/);
 });
 
