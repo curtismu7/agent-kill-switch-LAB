@@ -116,6 +116,32 @@ function buildApi(runtime) {
   return api;
 }
 
+// Mock/Real. This app is mock only by design (a scripted agent, a stub token service and a mock gateway; nothing real to call), so
+// Real is never available in a normal build. `realAvailable` is a TEST-ONLY seam, never read from the environment, so the switch
+// itself can be tested.
+const NO_REAL = 'Real mode is not available: this demo is mock only by design and has no real server to call.';
+function buildModeApi({ realAvailable }) {
+  const canReal = realAvailable === true;
+  const state = { source: canReal ? 'real' : 'mock' };
+  const info = () => ({ source: state.source, realAvailable: canReal, realReason: canReal ? null : NO_REAL });
+  const r = express.Router();
+  r.get('/info', (_req, res) => res.json(info()));
+  // Body is exactly {source: "mock" | "real"}. The mode lives in memory, so a switch needs no restart.
+  r.post('/mode', express.json({ limit: '2kb' }), (req, res) => {
+    const b = req.body;
+    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).length !== 1 || !['mock', 'real'].includes(b.source)) return bad(res, 'body must be exactly {"source": "mock" or "real"}');
+    if (b.source === 'real' && !canReal) return res.status(409).json({ error: 'conflict', message: NO_REAL });
+    state.source = b.source;
+    return res.json(info());
+  });
+  r.use((err, _req, res, next) => {
+    if (err.type === 'entity.parse.failed') return bad(res, 'request body is not valid JSON');
+    if (err.type === 'entity.too.large') return res.status(413).json({ error: 'payload_too_large', message: 'request body is too large' });
+    return next(err);
+  });
+  return r;
+}
+
 // The API router per runtime, cached weakly so a dropped workspace is garbage collected.
 const routers = new WeakMap();
 const routerFor = (runtime) => {
@@ -126,7 +152,7 @@ const routerFor = (runtime) => {
 
 // webDist: directory with the built UI. null (default, so API tests never depend on a build) disables static serving.
 // Either `runtime` (one fixed runtime: the tests) or `workspaces` (one runtime per browser, the default for startHttpServer).
-export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null } = {}) {
+export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null, realAvailable = false } = {}) {
   const app = express();
   app.disable('x-powered-by');
   const { hostGuard, originGuard } = makeGuards({ publicHost });
@@ -139,6 +165,7 @@ export function createApp({ runtime = null, workspaces = null, health = createHe
   }
   // The health probe is shared and reads no workspace state, so it does not create one.
   app.use('/api/health', health.router);
+  app.use('/api', buildModeApi({ realAvailable }));
   const ws = runtime ? null : (workspaces || createWorkspaces());
   app.use('/api', (req, res, next) => {
     const rt = runtime ?? ws.resolve(req, res);

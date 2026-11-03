@@ -8,7 +8,7 @@
       "description": "How an organization stops a runaway AI agent: rate and cost caps that trip automatically, an operator kill switch that revokes access, and the next call failing. Fully mocked; nothing real is touched.",
       "url": "http://localhost:6550",
       "healthPath": "/api/health",
-      "composeFile": "/Users/cmuir/Development/agent-kill-switch/docker-compose.yml",
+      "composeFile": "agent-kill-switch-LAB/docker-compose.yml",
       "composeOverlays": [],
       "notes": "Host-run: npm install && npm run build && npm start (port 6550; npm run doctor checks it). Or: docker compose up --build -d (publishes 127.0.0.1:6550 only; the host port is fixed). Edit composeFile to this checkout's absolute path."
     }

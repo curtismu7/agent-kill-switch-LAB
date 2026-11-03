@@ -48,6 +48,7 @@ Ports: server 6550, Vite dev 6560, e2e 6570, e2e-fedid 6571, Federated Identity 
 
 - Edit `content/terms.json` and `content/stories.json`, then `npm run content-pack` (validates against `docs/content-pack.schema.json`). Commit the regenerated `content-pack.json`.
 - Shelf entry: `docs/shelf-entry.json` (catalog id D14, port 6550), tested by `scripts/shelf-entry.test.mjs`. Set `composeFile` to your checkout path.
+- Mock/Real (rule 19): mock only by design. `GET /api/info` (`source`, `realAvailable`, `realReason`) and `POST /api/mode` `{source}` in `server/src/app.js`; Real is always 409; test seam `createApp({ realAvailable: true })`. Header toggle: `web/src/components/ModeToggle.jsx`.
 - Hosted build (`MODE=se-mock`, rule 18): mock only; `ks_ws` cookie per browser workspace; the public host is the only non-loopback Host. Details and the owner-approval gate: [docs/k8s.md](docs/k8s.md).
 - A new scenario goes in `server/src/scenarios.js` and must be described in the README (a docs test checks it).
 

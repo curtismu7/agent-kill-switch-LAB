@@ -15,6 +15,8 @@ async function call(path, method = "GET", body) {
   return data;
 }
 
+export const getInfo = () => call("/api/info");
+export const setMode = (source) => call("/api/mode", "POST", { source });
 export const getHealth = () => call("/api/health");
 export const getScenarios = () => call("/api/scenarios");
 export const getState = () => call("/api/state");
