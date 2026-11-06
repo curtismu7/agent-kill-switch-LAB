@@ -15,8 +15,10 @@ import Tokens from "./components/Tokens.jsx";
 import ModeToggle from "./components/ModeToggle.jsx";
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
-const initialTheme = () => safe(() => localStorage.getItem("ks-theme"), null)
-  || (safe(() => window.matchMedia("(prefers-color-scheme: dark)").matches, false) ? "dark" : "light");
+const initialTheme = () => {
+  const t = safe(() => localStorage.getItem("ks-theme"), null);
+  return ["auto", "light", "dark"].includes(t) ? t : "auto";
+};
 export const POLL_MS = 1500;
 export const BASE_MS = 1400;
 const SPEEDS = [["0.5", "0.5x"], ["1", "1x"], ["2", "2x"], ["4", "4x"]];
@@ -54,10 +56,12 @@ export default function App() {
   speedRef.current = speed;
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
     safe(() => localStorage.setItem("ks-theme", theme));
   }, [theme]);
 
+  const setThemePersist = (t) => { setTheme(t); safe(() => localStorage.setItem("ks-theme", t)); };
   const refresh = useCallback(async () => {
     try {
       const [s, ev, a] = await Promise.all([getState(), getEvents(cursor.current), getAudit()]);
@@ -219,9 +223,13 @@ export default function App() {
           <span className="badge demo" data-testid="mode-badge" title="Everything here is a mock: no tenant, no real model, nothing leaves 127.0.0.1.">DEMO</span>
           <ModelBadge />
           <ModeToggle info={info} onSelect={onSelectMode} />
-          <button type="button" className="btn small" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-pressed={theme === "dark"}>
-            {theme === "dark" ? "Light" : "Dark"} theme
-          </button>
+          <label className="inline">Theme
+            <select value={theme} onChange={(e) => setThemePersist(e.target.value)} data-testid="theme">
+              <option value="auto">Auto</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
         </div>
       </header>
 

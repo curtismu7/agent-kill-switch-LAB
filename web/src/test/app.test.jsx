@@ -121,8 +121,8 @@ test("the theme toggle flips data-theme", async () => {
   render(<App />);
   await screen.findByTestId("mode-badge");
   const before = document.documentElement.getAttribute("data-theme");
-  await userEvent.click(screen.getByRole("button", { name: /theme/ }));
-  expect(document.documentElement.getAttribute("data-theme")).not.toBe(before);
+  await userEvent.selectOptions(screen.getByTestId("theme"), "dark");
+  expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 });
 
 test("a hosted build shows the HOSTED SIMULATION banner on the page; a local build does not", async () => {
