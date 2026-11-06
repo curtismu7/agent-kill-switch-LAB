@@ -11,6 +11,7 @@ import { isHosted, publicHostOf } from './mode.js';
 import { createWorkspaces } from './workspaces.js';
 import { describeScenario, getScenario } from './scenarios.js';
 import { MODELS, TOOLS } from './policy.js';
+import { shelfInfo } from './shelfLink.js';
 
 export const DEFAULT_WEB_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 // The built UI is served from this server, so it is same-origin with the API. It may load script, style, image and fetch from itself only.
@@ -146,7 +147,7 @@ const routerFor = (runtime) => {
 
 // webDist: directory with the built UI. null (default, so API tests never depend on a build) disables static serving.
 // Either `runtime` (one fixed runtime: the tests) or `workspaces` (one runtime per browser, the default for startHttpServer).
-export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null, realAvailable = false } = {}) {
+export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null, realAvailable = false, env = process.env } = {}) {
   const app = express();
   app.disable('x-powered-by');
   const { hostGuard, originGuard } = makeGuards({ publicHost });
@@ -159,6 +160,7 @@ export function createApp({ runtime = null, workspaces = null, health = createHe
   }
   // The health probe is shared and reads no workspace state, so it does not create one.
   app.use('/api/health', health.router);
+  app.get('/api/shelf', (_req, res) => res.json(shelfInfo(env)));
   app.use('/api', buildModeApi({ realAvailable }));
   const ws = runtime ? null : (workspaces || createWorkspaces());
   app.use('/api', (req, res, next) => routerFor(runtime ?? ws.resolve(req, res))(req, res, next));
@@ -177,7 +179,7 @@ export async function startHttpServer({ port = serverPort(), host = bindHost(), 
   const workspaces = runtime ? null : createWorkspaces({ hosted });
   const health = createHealth({ env });
   return new Promise((resolve, reject) => {
-    const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost }).listen(port, host);
+    const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost, env }).listen(port, host);
     httpServer.once('error', (e) => { health.stop(); reject(e); });
     httpServer.once('listening', () => {
       const { port: bound } = httpServer.address();

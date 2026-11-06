@@ -186,3 +186,13 @@ test('a 500 never leaks the error message or a stack', async (t) => {
   } finally { runtime.snapshot = orig; console.error = origErr; }
   assert.equal(B, 'agent-beta');
 });
+
+test('GET /api/shelf answers the shelf URL (null when unconfigured)', async (t) => {
+  const runtime = createRuntime({ clock: createClock({ fixed: T0 }) });
+  const srv = await startHttpServer({ port: await freePort('api'), runtime, env: {} });
+  t.after(() => srv.close());
+  const r = await request(srv.port, 'GET', '/api/shelf');
+  assert.equal(r.status, 200);
+  assert.deepEqual(Object.keys(r.json), ['shelfUrl']);
+  assert.equal(r.json.shelfUrl, null);
+});

@@ -13,6 +13,7 @@ import { ModelBadge } from "./components/Badges.jsx";
 import Story from "./components/Story.jsx";
 import Tokens from "./components/Tokens.jsx";
 import ModeToggle from "./components/ModeToggle.jsx";
+import ShelfLink from "./components/ShelfLink.jsx";
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
 const initialTheme = () => {
@@ -220,6 +221,7 @@ export default function App() {
           <p className="tag">Stop a runaway AI agent: caps trip, an operator revokes, the next call fails.</p>
         </div>
         <div className="top-right">
+          <ShelfLink />
           <span className="badge demo" data-testid="mode-badge" title="Everything here is a mock: no tenant, no real model, nothing leaves 127.0.0.1.">DEMO</span>
           <ModelBadge />
           <ModeToggle info={info} onSelect={onSelectMode} />
