@@ -147,11 +147,20 @@ test('LAB_ALLOWED_HOSTS unset: loopback only', async (t) => {
 });
 
 test('LAB_ALLOWED_HOSTS: an invalid name refuses to start and leaves nothing running', async () => {
-  for (const bad of ['good.example,bad name', 'http://x.example', 'x.example:8443', '-x.example', 'x..example', 'a_b.example']) {
-    const port = await freePort('guards');
-    await assert.rejects(startHttpServer({ port, env: { LAB_ALLOWED_HOSTS: bad } }), /LAB_ALLOWED_HOSTS: not a host name/, bad);
-    await new Promise((resolve, reject) => { const s = net.createServer(); s.once('error', reject); s.listen(port, '127.0.0.1', () => s.close(resolve)); }); // the port is still free: nothing listens
-  }
+  // Count the timers and listeners started while the bad config is refused: there must be none.
+  const started = [];
+  const servers = [];
+  const realInterval = globalThis.setInterval;
+  const realListen = net.Server.prototype.listen;
+  globalThis.setInterval = (...a) => { started.push('timer'); return realInterval(...a); };
+  net.Server.prototype.listen = function listen(...a) { servers.push(this); return realListen.apply(this, a); }; // the helper's own free-port probes close again
+  try {
+    for (const bad of ['good.example,bad name', 'http://x.example', 'x.example:8443', '-x.example', 'x..example', 'a_b.example']) {
+      await assert.rejects(startHttpServer({ port: await freePort('guards'), env: { LAB_ALLOWED_HOSTS: bad } }), /LAB_ALLOWED_HOSTS: not a host name/, bad);
+    }
+  } finally { globalThis.setInterval = realInterval; net.Server.prototype.listen = realListen; }
+  assert.deepEqual(started, [], 'no timer was started');
+  assert.deepEqual(servers.filter((x) => x.listening), [], 'no server is still listening');
 });
 
 test('proxied write: accepted for an allowed Host with a matching forwarded host and scheme', async (t) => {
