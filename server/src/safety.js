@@ -2,7 +2,8 @@
 //  1. Bind loopback only, unless KILL_SWITCH_BIND opts in (the container does).
 //  2. Every port this app uses is in 6550-6599 (server 6550; 6551-6559 are reserved for stubs, none are opened in KS0).
 //  3. Only loopback hosts are Host-header-accepted, plus, in the hosted mock build only, the one public host the ingress
-//     serves (KILL_SWITCH_PUBLIC_HOST, passed through unchanged). No credential header is accepted; there is no URL input.
+//     serves (KILL_SWITCH_PUBLIC_HOST, passed through unchanged), plus the host names in LAB_ALLOWED_HOSTS (the lab-proxy's name for
+//     this app). No credential header is accepted; there is no URL input.
 //  4. State-changing requests (kill, unrevoke, run, reset) are CSRF-guarded.
 
 export const PORT_MIN = 6550;
@@ -37,10 +38,12 @@ export function parseHost(hostHeader, publicHost = null) {
 }
 
 // The guards that depend on the public host. publicHost null (local runs, tests) means loopback only, as before.
-export function makeGuards({ publicHost = null } = {}) {
+// allowedHosts: the host names (no port, lower case) the lab-proxy sends in Host, from LAB_ALLOWED_HOSTS; loopback always works.
+const hostName = (hostHeader) => String(hostHeader ?? '').trim().toLowerCase().replace(/:\d{1,5}$/, '');
+export function makeGuards({ publicHost = null, allowedHosts = new Set() } = {}) {
   // Rejects a missing, malformed or non-allowed Host header (DNS rebinding): 421 Misdirected Request.
   function hostGuard(req, res, next) {
-    if (!req.headers.host || !parseHost(req.headers.host, publicHost)) {
+    if (!req.headers.host || !(parseHost(req.headers.host, publicHost) || allowedHosts.has(hostName(req.headers.host)))) {
       return res.status(421).json({ error: 'bad_host', message: 'this server answers loopback Host headers only' });
     }
     return next();
@@ -73,7 +76,13 @@ export function makeGuards({ publicHost = null } = {}) {
         && u.host.toLowerCase() === host.host && !u.username && !u.password && u.pathname === '/' && origin === u.origin;
       const hostedSame = u && host && host.hosted && u.protocol === 'https:' && u.hostname.toLowerCase() === publicHost && u.port === ''
         && !u.username && !u.password && u.pathname === '/' && origin === u.origin;
-      if (!loopbackSame && !hostedSame) return refuse(403, 'bad_origin', 'this server accepts same-origin requests only');
+      // Behind the lab-proxy the browser's origin is https://local.ping-devops.com:8443 while Host is this app's own name. The proxy
+      // sets X-Forwarded-Host/-Proto; they are believed only when Host is one of the allowed names (loopback does not count), so a
+      // request that did not come through the proxy cannot use them.
+      const xfh = String(req.headers['x-forwarded-host'] || '').toLowerCase();
+      const xfp = String(req.headers['x-forwarded-proto'] || 'https').toLowerCase();
+      const proxied = allowedHosts.has(hostName(req.headers.host)) && xfh !== '' && (xfp === 'https' || xfp === 'http') && origin === `${xfp}://${xfh}`;
+      if (!loopbackSame && !hostedSame && !proxied) return refuse(403, 'bad_origin', 'this server accepts same-origin requests only');
     }
     const hasBody = Number(req.headers['content-length'] || 0) > 0 || req.headers['transfer-encoding'] !== undefined;
     if (hasBody && !/^application\/json\s*(;|$)/i.test(req.headers['content-type'] || '')) return refuse(415, 'unsupported_media_type', 'a request body must be application/json');

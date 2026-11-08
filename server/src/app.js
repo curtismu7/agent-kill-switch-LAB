@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createHealth } from './health.js';
 import { assertBindAllowed, bindHost, credentialGuard, makeGuards, serverPort } from './safety.js';
-import { isHosted, publicHostOf } from './mode.js';
+import { allowedHostsFrom, isHosted, publicHostOf } from './mode.js';
 import { createWorkspaces } from './workspaces.js';
 import { describeScenario, getScenario } from './scenarios.js';
 import { MODELS, TOOLS } from './policy.js';
@@ -147,10 +147,10 @@ const routerFor = (runtime) => {
 
 // webDist: directory with the built UI. null (default, so API tests never depend on a build) disables static serving.
 // Either `runtime` (one fixed runtime: the tests) or `workspaces` (one runtime per browser, the default for startHttpServer).
-export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null, realAvailable = false, env = process.env } = {}) {
+export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null, allowedHosts = new Set(), realAvailable = false, env = process.env } = {}) {
   const app = express();
   app.disable('x-powered-by');
-  const { hostGuard, originGuard } = makeGuards({ publicHost });
+  const { hostGuard, originGuard } = makeGuards({ publicHost, allowedHosts });
   app.use(hostGuard);
   app.use(credentialGuard);
   app.use(originGuard);
@@ -176,10 +176,11 @@ export async function startHttpServer({ port = serverPort(), host = bindHost(), 
   assertBindAllowed(host, env);
   const hosted = isHosted(env);
   const publicHost = publicHostOf(env);
+  const allowedHosts = allowedHostsFrom(env); // before the workspaces and the health timer start: a bad name must leave nothing running
   const workspaces = runtime ? null : createWorkspaces({ hosted });
   const health = createHealth({ env });
   return new Promise((resolve, reject) => {
-    const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost, env }).listen(port, host);
+    const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost, allowedHosts, env }).listen(port, host);
     httpServer.once('error', (e) => { health.stop(); reject(e); });
     httpServer.once('listening', () => {
       const { port: bound } = httpServer.address();

@@ -12,6 +12,7 @@ services:
       SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
       KILL_SWITCH_PORT: "6550"
       KILL_SWITCH_BIND: 0.0.0.0
+      LAB_ALLOWED_HOSTS: ${LAB_ALLOWED_HOSTS:-agent-kill-switch.local.ping-devops.com}
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
