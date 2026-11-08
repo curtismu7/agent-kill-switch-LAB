@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import net from 'node:net';
 import { test } from 'node:test';
 import { startHttpServer } from '../src/app.js';
 import { createClock } from '../src/clock.js';
@@ -117,4 +118,79 @@ test('hostile operator text is stored inert and redacted', async (t) => {
   const e = (await call('GET', '/api/audit')).json.entries[0];
   assert.doesNotMatch(JSON.stringify(e), /hunter2|[‮​]/);
   assert.match(e.data.operator, /\[U\+202E\]/);
+});
+
+// LAB_ALLOWED_HOSTS: the lab-proxy sends Host: <this app's name> and, for API calls, X-Forwarded-Host/-Proto; the browser's Origin is the proxy's.
+const LAB = 'ks.lab.example';
+const PROXY = 'proxy.example:8443';
+async function bootProxied(t, env = { LAB_ALLOWED_HOSTS: LAB }) {
+  const runtime = createRuntime({ clock: createClock({ fixed: T0 }) });
+  const srv = await startHttpServer({ port: await freePort('guards'), runtime, env });
+  t.after(() => srv.close());
+  return { runtime, call: (m, p, o) => request(srv.port, m, p, o) };
+}
+const kill = { scope: 'agent', agentId: A, operator: 'op' };
+const viaProxy = { host: `${LAB}:6550`, headers: { origin: `https://${PROXY}`, 'x-forwarded-host': PROXY, 'x-forwarded-proto': 'https' } };
+
+test('LAB_ALLOWED_HOSTS: allowed names pass the Host guard with or without a port and in any case; every other name is 421', async (t) => {
+  const { call } = await bootProxied(t, { LAB_ALLOWED_HOSTS: ` ${LAB.toUpperCase()}, second.lab.example ` });
+  for (const host of [LAB, `${LAB}:6550`, 'KS.Lab.Example:8443', 'second.lab.example', 'localhost', '127.0.0.1:6550']) assert.equal((await call('GET', '/api/health', { host })).status, 200, host);
+  for (const host of [`${LAB}.evil.example`, `evil.${LAB}`, `x${LAB}`, 'lab.example', 'third.lab.example', `${LAB}:abc`, `${LAB}:99999999`, `${LAB}@evil.example`, `${LAB}, evil.example`]) {
+    assert.equal((await call('GET', '/api/health', { host })).status, 421, host);
+  }
+});
+
+test('LAB_ALLOWED_HOSTS unset: loopback only', async (t) => {
+  const { call } = await bootProxied(t, {});
+  assert.equal((await call('GET', '/api/health', { host: LAB })).status, 421);
+  assert.equal((await call('GET', '/api/health', { host: '127.0.0.1' })).status, 200);
+});
+
+test('LAB_ALLOWED_HOSTS: an invalid name refuses to start and leaves nothing running', async () => {
+  for (const bad of ['good.example,bad name', 'http://x.example', 'x.example:8443', '-x.example', 'x..example', 'a_b.example']) {
+    const port = await freePort('guards');
+    await assert.rejects(startHttpServer({ port, env: { LAB_ALLOWED_HOSTS: bad } }), /LAB_ALLOWED_HOSTS: not a host name/, bad);
+    await new Promise((resolve, reject) => { const s = net.createServer(); s.once('error', reject); s.listen(port, '127.0.0.1', () => s.close(resolve)); }); // the port is still free: nothing listens
+  }
+});
+
+test('proxied write: accepted for an allowed Host with a matching forwarded host and scheme', async (t) => {
+  const { call, runtime } = await bootProxied(t);
+  const r = await call('POST', '/api/kill', { ...viaProxy, body: kill });
+  assert.equal(r.status, 200);
+  assert.ok(JSON.stringify(runtime.snapshot()).includes(A));
+  // The scheme defaults to https, and http is honoured when the proxy says so.
+  assert.equal((await call('POST', '/api/reset', { host: LAB, body: {}, headers: { origin: `https://${PROXY}`, 'x-forwarded-host': PROXY } })).status, 200);
+  assert.equal((await call('POST', '/api/reset', { host: LAB, body: {}, headers: { origin: 'http://proxy.example', 'x-forwarded-host': 'proxy.example', 'x-forwarded-proto': 'http' } })).status, 200);
+});
+
+test('proxied write: refused for a foreign origin, a forwarded host mismatch, the wrong scheme, cross-site and a missing forwarded host', async (t) => {
+  const { call, runtime } = await bootProxied(t);
+  const before = fingerprint(runtime);
+  const cases = {
+    'foreign origin': { origin: 'https://evil.example', 'x-forwarded-host': PROXY, 'x-forwarded-proto': 'https' },
+    'forwarded host mismatch': { origin: `https://${PROXY}`, 'x-forwarded-host': 'other.example:8443', 'x-forwarded-proto': 'https' },
+    'scheme mismatch (https origin, http forwarded)': { origin: `https://${PROXY}`, 'x-forwarded-host': PROXY, 'x-forwarded-proto': 'http' },
+    'scheme mismatch (http origin, https default)': { origin: `http://${PROXY}`, 'x-forwarded-host': PROXY },
+    'unknown scheme': { origin: `ftp://${PROXY}`, 'x-forwarded-host': PROXY, 'x-forwarded-proto': 'ftp' },
+    'no forwarded host': { origin: `https://${PROXY}`, 'x-forwarded-proto': 'https' },
+    'cross-site': { origin: `https://${PROXY}`, 'x-forwarded-host': PROXY, 'x-forwarded-proto': 'https', 'sec-fetch-site': 'cross-site' },
+  };
+  for (const [name, headers] of Object.entries(cases)) {
+    const r = await call('POST', '/api/kill', { host: LAB, body: kill, headers });
+    assert.equal(r.status, 403, name);
+  }
+  assert.equal(fingerprint(runtime), before);
+});
+
+test('forwarded headers are ignored on a loopback Host and on any Host that is not allowed', async (t) => {
+  const { call, runtime } = await bootProxied(t);
+  const before = fingerprint(runtime);
+  const headers = { origin: `https://${PROXY}`, 'x-forwarded-host': PROXY, 'x-forwarded-proto': 'https' };
+  for (const host of ['127.0.0.1:6550', 'localhost', '[::1]:6550']) assert.equal((await call('POST', '/api/kill', { host, body: kill, headers })).status, 403, host);
+  assert.equal((await call('POST', '/api/kill', { host: 'other.lab.example', body: kill, headers })).status, 421);
+  assert.equal(fingerprint(runtime), before);
+  // With LAB_ALLOWED_HOSTS unset the same request is a plain bad origin on loopback.
+  const bare = await bootProxied(t, {});
+  assert.equal((await bare.call('POST', '/api/kill', { host: '127.0.0.1', body: kill, headers })).status, 403);
 });

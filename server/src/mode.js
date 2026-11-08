@@ -23,6 +23,15 @@ export function publicHostOf(env = process.env) {
   return PLAIN_HOST.test(h) && !/^\d+(\.\d+){3}$/.test(h) && h !== 'localhost' ? h : null;
 }
 
+// Extra Host names this app answers to (family standard): LAB_ALLOWED_HOSTS, comma separated host names that point at this Mac,
+// such as the lab-proxy's agent-kill-switch.local.ping-devops.com. Loopback always works; unset = loopback only.
+const HOSTNAME = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+export function allowedHostsFrom(env = process.env) {
+  const names = String(env.LAB_ALLOWED_HOSTS || '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
+  for (const h of names) if (!HOSTNAME.test(h)) throw new Error(`LAB_ALLOWED_HOSTS: not a host name: ${h}`);
+  return new Set(names);
+}
+
 // Checks for the doctor. Returns [{ id, level, detail }].
 export function modeChecks(env = process.env) {
   const mode = modeOf(env);
