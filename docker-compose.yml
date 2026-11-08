@@ -9,6 +9,7 @@ services:
     ports:
       - "127.0.0.1:6550:6550"
     environment:
+      SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
       KILL_SWITCH_PORT: "6550"
       KILL_SWITCH_BIND: 0.0.0.0
     read_only: true

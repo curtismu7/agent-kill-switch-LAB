@@ -196,3 +196,13 @@ test('GET /api/shelf answers the shelf URL (null when unconfigured)', async (t) 
   assert.deepEqual(Object.keys(r.json), ['shelfUrl']);
   assert.equal(r.json.shelfUrl, null);
 });
+
+test('GET /api/shelf is reachable with no web build, reads SHELF_URL (trailing slash trimmed), and POST is refused', async (t) => {
+  const runtime = createRuntime({ clock: createClock({ fixed: T0 }) });
+  const srv = await startHttpServer({ port: await freePort('api'), runtime, webDist: null, env: { SHELF_URL: 'https://shelf.example:8443/' } });
+  t.after(() => srv.close());
+  const r = await request(srv.port, 'GET', '/api/shelf');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json, { shelfUrl: 'https://shelf.example:8443' });
+  assert.notEqual((await request(srv.port, 'POST', '/api/shelf', { body: {} })).status, 200);
+});
