@@ -2,7 +2,8 @@
 
 A demo of how an organization stops a runaway AI agent: per-agent **rate caps** and **cost caps** that trip automatically, an operator **kill switch** that revokes the agent's access, and the very next call failing. It shows the access token being revoked, the token service refusing to issue a new one, what happens to a call that was already in flight, and how little the other agent notices.
 
-Repo: https://github.com/ping-sandbox/agent-kill-switch-LAB
+Tier: Demo
+Repo: https://github.com/curtismu7/agent-kill-switch-LAB
 
 Everything is a mock. A scripted agent calls mock tools through a mock gateway, with a stub token service. There is no tenant, no real model and no network beyond `127.0.0.1`.
 
@@ -13,6 +14,21 @@ Built and tested: KS0 (server core), KS1 (web UI, served by the server itself), 
 ## Provenance, in one paragraph
 
 The kill-switch behaviour (revoke blocks the next call, in-flight calls finish, the kill is checked on every call, kill and gate use the same agent key, unrevoke, auto-reset, live steps) is reproduced from the AI-DEMO2 demo environment. **How real PingOne products implement revoke and caps is as modelled in the demo environment, UNVERIFIED against product documentation. This app makes no claim about real product defaults, limits or latency.** All numbers (windows, budgets, prices, TTLs, cooldowns) are invented. See [docs/safety.md](docs/safety.md) for the sourced-versus-invented table and the exact in-flight semantics.
+
+## Run from a clone
+
+Prerequisites: Node 26 or newer. Docker only if you use the Docker form. Everything is a mock: no tenant, no credentials, no settings file.
+
+```bash
+git clone https://github.com/curtismu7/agent-kill-switch-LAB.git
+cd agent-kill-switch-LAB
+npm install
+npm run build
+npm run doctor
+npm start
+```
+
+Open http://127.0.0.1:6550/ (the server serves the built UI itself). `GET http://127.0.0.1:6550/api/health` reports `state: ready`.
 
 ## Run it
 
@@ -116,11 +132,27 @@ JSON bodies only (2 KB), same-origin only (cross-origin `Origin` / `Sec-Fetch-Si
 
 Last run (KS2, a clean clone of the commit that carries this text): `npm test` exits 0 with 125 server tests, 38 web (vitest) tests and 43 script tests (42 run, 1 skipped); `npm run doctor` exits 0; `npm run e2e` reports 59 PASS and 0 FAIL; `npm run red-checks` reports all 63 mutations caught and `npm run red-checks-web` all 23 UI mutations caught. `scripts/docs.test.mjs` pins these two mutation counts to the scripts, so they cannot drift silently (the test counts are not pinned; re-run to see them). Each mutation removes or inverts one check in a copy of the code and requires the suite to fail: cap comparisons and window boundaries, budget accounting (money and token +1 boundaries), per-call kill check, revoked-token acceptance, revocation-list refresh, token expiry, audit entries for kill/unrevoke, eviction and sequence checks, auto-reset scope and the global-kill case, blast radius, key derivation (NFKC fold, 64-char bound), model/tool lookups, operator name on unrevoke, Origin, Sec-Fetch-Site, JSON-only and chunked-body checks, Host guard (loopback octets), credential guard, read/write method split, redaction patterns (JWT, AWS key, PEM, URL query and userinfo, `sk-`/`ghp_`/`xox`), event inertness and bounds, wall-time audit stamps, the operator-kill block on scenario start, and in the UI the confirm step, the always-available Kill, the kill skip link, non-tab-stop diagram boxes, the diagram remount on Reset, and reduced motion.
 
-Not verified: Node 20.12 (the `engines` floor, because `process.loadEnvFile` needs it) was not run; Node 22 and 26 were. Mobile (390 px) shows the whole diagram scaled down and small; zooming is the way to read it. Equivalent mutants that no test can kill by behaviour (for example removing the audit `prevHash` link check, which the HMAC over `prevHash` makes redundant, or the audit key-sort in the canonical form) are not pinned.
+The `engines` floor is Node 26, the family standard (the code itself needs 20.12+ for `process.loadEnvFile`); Node 22 and 26 were run. Mobile (390 px) shows the whole diagram scaled down and small; zooming is the way to read it. Equivalent mutants that no test can kill by behaviour (for example removing the audit `prevHash` link check, which the HMAC over `prevHash` makes redundant, or the audit key-sort in the canonical form) are not pinned.
 
 Docker (OrbStack): `docker compose up` built the image, the container answered `GET /api/health` with `state: ready` on `127.0.0.1:6550`, and `docker ps` showed the port published as `127.0.0.1:6550->6550/tcp`; the loopback publish is also pinned by `scripts/compose.test.mjs`. 
 
-## Ports
+## Ports, and what to do if the port is taken
+
+```
+Ports: agent-kill-switch-LAB listens on 6550 (set with KILL_SWITCH_PORT, default 6550).
+Port range for this app: 6550-6599.
+
+If the port is taken:
+1. Find what is using it:
+   lsof -iTCP:6550 -sTCP:LISTEN -n -P
+2. If it is an old copy of this app, stop that process: kill <PID>.
+3. If it is something else, stop it, or start this app on another free port in 6550-6599
+   (not one listed below):
+   KILL_SWITCH_PORT=<other port> npm start
+   The Docker form has no override: its host port is fixed at 6550.
+```
+
+`npm run doctor` warns when port 6550 is busy.
 
 Server 6550. 6551-6559 are reserved for stub listeners (none are opened, the tools are in-process). Vite dev uses 6560, the e2e run 6570, tests 6580-6599.
 
