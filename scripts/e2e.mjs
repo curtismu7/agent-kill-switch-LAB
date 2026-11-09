@@ -155,7 +155,7 @@ try {
   // Dark theme and the final state, screenshots.
   await reset(); await pick('stale-token-gap');
   await page.getByRole('button', { name: 'Run', exact: true }).click(); await waitStatus(/^Ran /);
-  await page.getByRole('button', { name: /theme/ }).click();
+  await page.getByTestId('theme').selectOption('dark'); // the theme control is a select (Auto / Light / Dark)
   check((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) === 'dark', 'theme toggle switches to dark');
   await shot('stale-token-gap-dark');
   await pick('rate-loop'); await page.getByRole('button', { name: 'Run', exact: true }).click(); await waitStatus(/Ran "Loop/);
@@ -167,8 +167,9 @@ try {
   const sw390 = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
   check(sw390.sw <= sw390.iw, `no horizontal scroll at 390px (scrollWidth ${sw390.sw}, innerWidth ${sw390.iw})`);
   await shot('mobile-390-dark');
-  await page.getByRole('button', { name: /theme/ }).click();
+  await page.getByTestId('theme').selectOption('light');
   await sleep(200);
+  check((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) === 'light', 'theme picker switches back to light');
   const sw390l = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
   check(sw390l.sw <= sw390l.iw, `no horizontal scroll at 390px, light (scrollWidth ${sw390l.sw})`);
   await shot('mobile-390-light');
