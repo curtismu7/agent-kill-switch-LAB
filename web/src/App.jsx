@@ -14,6 +14,9 @@ import Story from "./components/Story.jsx";
 import Tokens from "./components/Tokens.jsx";
 import ModeToggle from "./components/ModeToggle.jsx";
 import ShelfLink from "./components/ShelfLink.jsx";
+import ReturnLink from "./return-link/ReturnLink.jsx";
+import { readReturnContext } from "./return-link/returnTargets.js";
+import { scenarioFor } from "./handoffMap.js";
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
 const initialTheme = () => {
@@ -27,6 +30,8 @@ const EVENT_KEEP = 500;
 const sleep = (n) => new Promise((r) => { setTimeout(r, n); });
 
 export default function App() {
+  // Opened from Customer Agent LAB: preselect the matching scenario (handoffMap.js), once, on load.
+  const [handoffScenario] = useState(() => scenarioFor(readReturnContext(window.location.search)));
   const [theme, setTheme] = useState(initialTheme);
   const [health, setHealth] = useState(null);
   const [scenarios, setScenarios] = useState([]);
@@ -89,11 +94,11 @@ export default function App() {
   useEffect(() => {
     getHealth().then(setHealth, () => setHealth({ unreachable: true }));
     getInfo().then(setInfo, () => setInfo(null));
-    getScenarios().then((r) => { setScenarios(r.scenarios); setScenarioId((id) => id || r.scenarios[0]?.id || ""); }, (e) => setError(`Could not load scenarios: ${e.message}`));
+    getScenarios().then((r) => { setScenarios(r.scenarios); setScenarioId((id) => id || (r.scenarios.some((s) => s.id === handoffScenario) ? handoffScenario : r.scenarios[0]?.id) || ""); }, (e) => setError(`Could not load scenarios: ${e.message}`));
     refresh();
     const poll = setInterval(refresh, POLL_MS);
     return () => { clearInterval(poll); simId.current += 1; };
-  }, [refresh, reloadKey]);
+  }, [refresh, reloadKey, handoffScenario]);
 
   const scenario = scenarios.find((s) => s.id === scenarioId) || null;
   const run = snap?.run || null;
@@ -215,12 +220,14 @@ export default function App() {
       )}
       <a className="skip" href="#main">Skip to content</a>
       <a className="skip skip-kill" href="#kill-h">Skip to the kill switch</a>
+      <ReturnLink app="agent-kill-switch" />
       <header className="top">
         <div>
           <h1>Agent Kill Switch</h1>
           <p className="tag">Stop a runaway AI agent: caps trip, an operator revokes, the next call fails.</p>
         </div>
         <div className="top-right">
+          <ReturnLink app="agent-kill-switch" variant="header" />
           <ShelfLink />
           <span className="badge demo" data-testid="mode-badge" title="Everything here is a mock: no tenant, no real model, nothing leaves 127.0.0.1.">DEMO</span>
           <ModelBadge />
