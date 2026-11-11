@@ -155,7 +155,7 @@ try {
   // Dark theme and the final state, screenshots.
   await reset(); await pick('stale-token-gap');
   await page.getByRole('button', { name: 'Run', exact: true }).click(); await waitStatus(/^Ran /);
-  await page.getByTestId('theme').selectOption('dark'); // the theme control is a select (Auto / Light / Dark)
+  await page.getByTestId('theme-select').selectOption('dark'); // the top-menu theme control (Auto / Light / Dark)
   check((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) === 'dark', 'theme toggle switches to dark');
   await shot('stale-token-gap-dark');
   await pick('rate-loop'); await page.getByRole('button', { name: 'Run', exact: true }).click(); await waitStatus(/Ran "Loop/);
