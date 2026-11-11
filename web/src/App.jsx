@@ -12,7 +12,7 @@ import KillPanel from "./components/KillPanel.jsx";
 import { ModelBadge } from "./components/Badges.jsx";
 import Story from "./components/Story.jsx";
 import Tokens from "./components/Tokens.jsx";
-import ModeToggle from "./components/ModeToggle.jsx";
+import TopMenu from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink.jsx";
 import ReturnLink from "./return-link/ReturnLink.jsx";
 import { readReturnContext } from "./return-link/returnTargets.js";
@@ -227,18 +227,18 @@ export default function App() {
           <p className="tag">Stop a runaway AI agent: caps trip, an operator revokes, the next call fails.</p>
         </div>
         <div className="top-right">
-          <ReturnLink app="agent-kill-switch" variant="header" />
-          <ShelfLink />
-          <span className="badge demo" data-testid="mode-badge" title="Everything here is a mock: no tenant, no real model, nothing leaves 127.0.0.1.">DEMO</span>
-          <ModelBadge />
-          <ModeToggle info={info} onSelect={onSelectMode} />
-          <label className="inline">Theme
-            <select value={theme} onChange={(e) => setThemePersist(e.target.value)} data-testid="theme">
-              <option value="auto">Auto</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
+          <TopMenu
+            mode={{ value: info?.source === "real" ? "real" : "mock", onChange: (s) => guard(() => onSelectMode(s)), realAvailable: info ? info.realAvailable === true : null, realHint: info && !info.realAvailable ? info.realReason : undefined }}
+            theme={{ value: theme, onChange: setThemePersist }}
+            help={{ href: "https://github.com/curtismu7/agent-kill-switch-LAB#readme" }}
+            version={info?.version || null}
+            onReset={onReset}
+          >
+            <ReturnLink app="agent-kill-switch" variant="header" />
+            <ShelfLink />
+            <span className="badge demo" data-testid="mode-badge" title="Everything here is a mock: no tenant, no real model, nothing leaves 127.0.0.1.">DEMO</span>
+            <ModelBadge />
+          </TopMenu>
         </div>
       </header>
 

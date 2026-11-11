@@ -48,7 +48,7 @@ describe("return link", () => {
     render(<App />);
     expect(screen.getByRole("note", NOTE).textContent).toContain("UC18");
     expect(screen.getAllByRole("button", { name: /Back to Customer Agent LAB/ })).toHaveLength(2);
-    expect(document.querySelector("header.top .top-right > button.return-link--header")).not.toBeNull();
+    expect(document.querySelector("header.top .top-right button.return-link--header")).not.toBeNull();
     await waitFor(() => expect(screen.getByTestId("scenario-select")).toHaveValue("rate-loop"));
   });
 
@@ -93,3 +93,17 @@ describe("return link", () => {
     expect(navigate).toHaveBeenLastCalledWith("http://127.0.0.1:5603/?returned=agent-kill-switch&uc=UC18");
   });
 });
+
+  it("?from=ai-demo-standalone: strip names AI Demo Standalone, Back goes to its proxy path", () => {
+    const navigate = vi.fn();
+    const search = "?from=ai-demo-standalone&uc=UC12";
+    render(<ReturnLink app="agent-kill-switch" navigate={navigate} location={{ pathname: "/agent-kill-switch/", search }} />);
+    const note = screen.getByRole("note", { name: "Opened from AI Demo Standalone" });
+    expect(note.textContent).toContain("UC12");
+    fireEvent.click(screen.getByRole("button", { name: /Back to AI Demo Standalone/ }));
+    expect(navigate).toHaveBeenLastCalledWith("/ai-demo-standalone/?returned=agent-kill-switch&uc=UC12");
+    cleanup();
+    render(<ReturnLink app="agent-kill-switch" navigate={navigate} location={{ pathname: "/", search }} />);
+    fireEvent.click(screen.getByRole("button", { name: /Back to AI Demo Standalone/ }));
+    expect(navigate).toHaveBeenLastCalledWith("http://127.0.0.1:7810/?returned=agent-kill-switch&uc=UC12");
+  });

@@ -118,7 +118,7 @@ const NO_REAL = 'Real mode is not available: this demo is mock only by design an
 function buildModeApi({ realAvailable }) {
   const canReal = realAvailable === true;
   const state = { source: canReal ? 'real' : 'mock' };
-  const info = () => ({ source: state.source, realAvailable: canReal, realReason: canReal ? null : NO_REAL });
+  const info = () => ({ version: (() => { try { return JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version || null; } catch { return null; } })(), source: state.source, realAvailable: canReal, realReason: canReal ? null : NO_REAL });
   const r = express.Router();
   r.get('/info', (_req, res) => res.json(info()));
   // Body is exactly {source: "mock" | "real"}. The mode lives in memory, so a switch needs no restart.

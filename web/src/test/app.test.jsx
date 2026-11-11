@@ -121,7 +121,7 @@ test("the theme toggle flips data-theme", async () => {
   render(<App />);
   await screen.findByTestId("mode-badge");
   const before = document.documentElement.getAttribute("data-theme");
-  await userEvent.selectOptions(screen.getByTestId("theme"), "dark");
+  await userEvent.selectOptions(screen.getByTestId("theme-select"), "dark");
   expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 });
 
@@ -142,12 +142,11 @@ test("the Mock/Real toggle is in the header: Mock pressed, Real disabled with th
   setup();
   const { container } = render(<App />);
   const header = container.querySelector("header.top");
-  const mock = await within(header).findByRole("button", { name: "Mock" });
-  await waitFor(() => expect(mock).toHaveAttribute("aria-pressed", "true"));
-  const real = within(header).getByRole("button", { name: "Real" });
-  expect(real).toHaveAttribute("aria-pressed", "false");
+  const select = await within(header).findByTestId("mode-select");
+  await waitFor(() => expect(select).toHaveValue("mock"));
+  const real = select.querySelector('option[value="real"]');
   expect(real).toBeDisabled();
-  expect(real).toHaveAttribute("title", expect.stringMatching(/no real server to call/));
+  expect(real.title).toMatch(/no real server to call/);
 });
 
 test("clicking the toggle POSTs the mode, then loads info, scenarios and state again; the pressed button follows", async () => {
@@ -156,18 +155,18 @@ test("clicking the toggle POSTs the mode, then loads info, scenarios and state a
   api.getInfo.mockImplementation(async () => ({ ...MOCK_INFO, realAvailable: true, source }));
   api.setMode.mockImplementation(async (s) => { source = s; return { ...MOCK_INFO, realAvailable: true, source }; });
   render(<App />);
-  const real = await screen.findByRole("button", { name: "Real" });
-  await waitFor(() => expect(real).toHaveAttribute("aria-pressed", "true"));
+  const select = await screen.findByTestId("mode-select");
+  await waitFor(() => expect(select).toHaveValue("real"));
   await screen.findByTestId("gauges-agent-alpha");
   const before = { scenarios: api.getScenarios.mock.calls.length, state: api.getState.mock.calls.length, health: api.getHealth.mock.calls.length };
-  await userEvent.click(screen.getByRole("button", { name: "Mock" }));
+  await userEvent.selectOptions(select, "mock");
   expect(api.setMode).toHaveBeenCalledWith("mock");
-  await waitFor(() => expect(screen.getByRole("button", { name: "Mock" })).toHaveAttribute("aria-pressed", "true"));
+  await waitFor(() => expect(select).toHaveValue("mock"));
   await waitFor(() => expect(api.getScenarios.mock.calls.length).toBe(before.scenarios + 1));
   expect(api.getHealth.mock.calls.length).toBe(before.health + 1);
   expect(api.getState.mock.calls.length).toBeGreaterThan(before.state);
-  await userEvent.click(screen.getByRole("button", { name: "Real" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Real" })).toHaveAttribute("aria-pressed", "true"));
+  await userEvent.selectOptions(select, "real");
+  await waitFor(() => expect(select).toHaveValue("real"));
   await waitFor(() => expect(api.getScenarios.mock.calls.length).toBe(before.scenarios + 2));
 });
 
@@ -176,11 +175,11 @@ test("a refused switch (409) shows the server's message, loads nothing again and
   api.getInfo.mockResolvedValue({ ...MOCK_INFO, realAvailable: true });
   api.setMode.mockRejectedValue(Object.assign(new Error("Real mode is not available: nothing to call."), { status: 409 }));
   render(<App />);
-  const real = await screen.findByRole("button", { name: "Real" });
-  await waitFor(() => expect(real).toBeEnabled());
+  const select = await screen.findByTestId("mode-select");
+  await waitFor(() => expect(select.querySelector('option[value="real"]')).toBeEnabled());
   const before = api.getScenarios.mock.calls.length;
-  await userEvent.click(real);
+  await userEvent.selectOptions(select, "real");
   await waitFor(() => expect(screen.getByText("Real mode is not available: nothing to call.")).toBeInTheDocument());
-  expect(screen.getByRole("button", { name: "Mock" })).toHaveAttribute("aria-pressed", "true");
+  expect(select).toHaveValue("mock");
   expect(api.getScenarios.mock.calls.length).toBe(before);
 });
