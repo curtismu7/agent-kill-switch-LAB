@@ -260,7 +260,6 @@ export default function App() {
             <button type="button" className="btn primary" onClick={onRun} disabled={busy || !scenarioId}>Run</button>
             <button type="button" className="btn" onClick={onStep} disabled={busy || !scenarioId}>Step</button>
             <button type="button" className="btn" onClick={onSimulate} disabled={!scenarioId} aria-pressed={simulating}>{simulating ? "Pause" : "Simulate"}</button>
-            <button type="button" className="btn" onClick={onReset} disabled={busy}>Reset</button>
             <label>Speed
               <select value={speed} onChange={(e) => setSpeed(e.target.value)}>
                 {SPEEDS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
