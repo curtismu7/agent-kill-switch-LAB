@@ -167,7 +167,7 @@ try {
   const sw390 = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
   check(sw390.sw <= sw390.iw, `no horizontal scroll at 390px (scrollWidth ${sw390.sw}, innerWidth ${sw390.iw})`);
   await shot('mobile-390-dark');
-  await page.getByTestId('theme').selectOption('light');
+  await page.getByTestId('theme-select').selectOption('light');
   await sleep(200);
   check((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) === 'light', 'theme picker switches back to light');
   const sw390l = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
