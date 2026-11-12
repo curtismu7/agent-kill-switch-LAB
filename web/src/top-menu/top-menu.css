@@ -33,7 +33,8 @@
   border-radius: 8px;
   background: transparent;
   color: var(--on-box);
-  border: 1px solid var(--on-accent-border, rgba(252, 252, 252, 0.55));
+  /* --on-accent-border is defined by the vendored standalone-ui.css; no literal fallback (P10/T1) */
+  border: 1px solid var(--on-accent-border);
   cursor: pointer;
   text-decoration: none;
   display: inline-flex;
