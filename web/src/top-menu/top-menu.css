@@ -106,13 +106,14 @@
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.5rem;
+  gap: 0.55rem;
+  padding-left: 1rem;
 }
 
 .top-menu__row {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
