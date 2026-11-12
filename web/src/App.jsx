@@ -11,6 +11,7 @@ import Gauges from "./components/Gauges.jsx";
 import KillPanel from "./components/KillPanel.jsx";
 import { ModelBadge } from "./components/Badges.jsx";
 import Story from "./components/Story.jsx";
+import TalkTrack from "./components/TalkTrack.jsx";
 import Tokens from "./components/Tokens.jsx";
 import TopMenu from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink.jsx";
@@ -55,6 +56,7 @@ export default function App() {
   const [reason, setReason] = useState("");
   const [inFlight, setInFlight] = useState("finish");
   const [resetBudget, setResetBudget] = useState(false);
+  const [showTalk, setShowTalk] = useState(false);
   const cursor = useRef(0);
   const first = useRef(true);
   const simId = useRef(0);
@@ -233,6 +235,7 @@ export default function App() {
             help={{ href: "https://github.com/curtismu7/agent-kill-switch-LAB#readme" }}
             version={info?.version || null}
             onReset={onReset}
+            talkTrack={{ active: showTalk, onToggle: () => setShowTalk((v) => !v) }}
           >
             <ReturnLink app="agent-kill-switch" variant="header" />
             <ShelfLink />
@@ -248,6 +251,8 @@ export default function App() {
         <div className="sr-only" role="alert" data-testid="stop-alert">{alertText}</div>
 
         <Story stage={stage} scenario={scenario} />
+
+        {showTalk && <TalkTrack />}
 
         <section className="panel controls" aria-labelledby="ctl-h">
           <h2 id="ctl-h">Run it</h2>

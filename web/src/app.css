@@ -162,3 +162,6 @@ label.check input { min-height: 0; padding: 0; width: 18px; height: 18px; }
 .audit .seq { color: var(--muted); font-family: var(--font-mono); }
 .prov { border-top: 4px solid var(--ink); padding-top: 12px; color: var(--muted); font-size: .9rem; }
 .prov h2 { color: var(--ink); }
+
+.talk { max-width: 52rem; }
+.talk__step { padding-left: 8px; border-left: 3px solid var(--accent); }
