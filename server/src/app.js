@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createHealth } from './health.js';
+import { allPassed, runChecks as defaultChecks } from './doctor.js';
 import { assertBindAllowed, bindHost, credentialGuard, makeGuards, serverPort } from './safety.js';
 import { allowedHostsFrom, isHosted, publicHostOf } from './mode.js';
 import { createWorkspaces } from './workspaces.js';
@@ -147,7 +148,8 @@ const routerFor = (runtime) => {
 
 // webDist: directory with the built UI. null (default, so API tests never depend on a build) disables static serving.
 // Either `runtime` (one fixed runtime: the tests) or `workspaces` (one runtime per browser, the default for startHttpServer).
-export function createApp({ runtime = null, workspaces = null, health = createHealth(), webDist = null, publicHost = null, allowedHosts = new Set(), realAvailable = false, env = process.env } = {}) {
+export function createApp({ runtime = null, workspaces = null, health, webDist = null, publicHost = null, allowedHosts = new Set(), realAvailable = false, env = process.env } = {}) {
+  health = health || createHealth({ demoId: 'agent-kill-switch', demoName: 'Agent Kill Switch', version: '0.1.0', runChecks: (a) => defaultChecks(a), allPassed, env });
   const app = express();
   app.disable('x-powered-by');
   const { hostGuard, originGuard } = makeGuards({ publicHost, allowedHosts });
@@ -178,7 +180,7 @@ export async function startHttpServer({ port = serverPort(), host = bindHost(), 
   const publicHost = publicHostOf(env);
   const allowedHosts = allowedHostsFrom(env); // before the workspaces and the health timer start: a bad name must leave nothing running
   const workspaces = runtime ? null : createWorkspaces({ hosted });
-  const health = createHealth({ env });
+  const health = createHealth({ demoId: 'agent-kill-switch', demoName: 'Agent Kill Switch', version: '0.1.0', runChecks: (a) => defaultChecks(a), allPassed, env });
   return new Promise((resolve, reject) => {
     const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost, allowedHosts, env }).listen(port, host);
     httpServer.once('error', (e) => { health.stop(); reject(e); });

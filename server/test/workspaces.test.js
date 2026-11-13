@@ -117,7 +117,7 @@ test('the doctor refuses to start a hosted build with a live setting (the same c
 
 test('hosted guards: the public host and its https origin pass; any other Host or Origin is refused; loopback still works', async (t) => {
   const port = await freePort('ws');
-  const app = createApp({ runtime: createRuntime({ hosted: true }), health: createHealth({ runChecks: () => [], env: {} }), publicHost: 'ai-demo.example.com' });
+  const app = createApp({ runtime: createRuntime({ hosted: true }), health: createHealth({ demoId: 'agent-kill-switch', demoName: 'Agent Kill Switch', version: '0.1.0', runChecks: () => [], allPassed: (c) => (c || []).every((x) => x?.level !== 'fail'), env: {} }), publicHost: 'ai-demo.example.com' });
   const srv = app.listen(port, '127.0.0.1');
   t.after(() => new Promise((r) => srv.close(r)));
   assert.equal((await request(port, 'GET', '/api/state', { host: 'ai-demo.example.com' })).status, 200, 'the public host reads');
