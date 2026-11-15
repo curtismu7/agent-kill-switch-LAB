@@ -223,29 +223,31 @@ export default function App() {
       <a className="skip" href="#main">Skip to content</a>
       <a className="skip skip-kill" href="#kill-h">Skip to the kill switch</a>
       <ReturnLink app="agent-kill-switch" />
-      <header className="top">
-        <div>
+      <header className="shell-bar">
+        <span className="shell-brand">
+          <span className="shell-logo" aria-hidden="true">KS</span>
           <h1>Agent Kill Switch</h1>
-          <p className="tag">Stop a runaway AI agent: caps trip, an operator revokes, the next call fails.</p>
-        </div>
-        <div className="top-right">
-          <TopMenu
-            mode={{ value: info?.source === "real" ? "real" : "mock", onChange: (s) => guard(() => onSelectMode(s)), realAvailable: info ? info.realAvailable === true : null, realHint: info && !info.realAvailable ? info.realReason : undefined }}
-            theme={{ value: theme, onChange: setThemePersist }}
-            help={{ href: "https://github.com/curtismu7/agent-kill-switch-LAB#readme" }}
-            version={info?.version || null}
-            onReset={onReset}
-            talkTrack={{ active: showTalk, onToggle: () => setShowTalk((v) => !v) }}
-          >
-            <ReturnLink app="agent-kill-switch" variant="header" />
-            <ShelfLink />
-            <span className="badge demo" data-testid="mode-badge" title="Everything here is a mock: no tenant, no real model, nothing leaves 127.0.0.1.">DEMO</span>
-            <ModelBadge />
-          </TopMenu>
-        </div>
+          <span className="badge demo" data-testid="mode-badge" title="Everything here is a mock: no tenant, no real model, nothing leaves 127.0.0.1.">DEMO</span>
+        </span>
+        <nav className="shell-nav" aria-label="Pages">
+          <a href="#main" aria-current="page">Kill switch</a>
+        </nav>
+        <TopMenu
+          mode={{ value: info?.source === "real" ? "real" : "mock", onChange: (s) => guard(() => onSelectMode(s)), realAvailable: info ? info.realAvailable === true : null, realHint: info && !info.realAvailable ? info.realReason : undefined }}
+          theme={{ value: theme, onChange: setThemePersist }}
+          help={{ href: "https://github.com/curtismu7/agent-kill-switch-LAB#readme" }}
+          version={info?.version || null}
+          onReset={onReset}
+          talkTrack={{ active: showTalk, onToggle: () => setShowTalk((v) => !v) }}
+        >
+          <ReturnLink app="agent-kill-switch" variant="header" />
+          <ShelfLink />
+          <ModelBadge />
+        </TopMenu>
       </header>
 
       <main id="main" tabIndex={-1}>
+        <p className="tag">Stop a runaway AI agent: caps trip, an operator revokes, the next call fails.</p>
         {error && <p className="banner" role="alert">{error}</p>}
         {health?.unreachable && <p className="banner" role="alert">The health endpoint did not answer.</p>}
         <div className="sr-only" role="alert" data-testid="stop-alert">{alertText}</div>

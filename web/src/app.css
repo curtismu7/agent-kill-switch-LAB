@@ -8,6 +8,9 @@
   --trip-bg: color-mix(in srgb, var(--status-warn) 16%, var(--surface));
   --kill-bg: color-mix(in srgb, var(--danger-text) 14%, var(--surface));
   --reset-bg: color-mix(in srgb, var(--status-info) 14%, var(--surface));
+  --kill-ring: color-mix(in srgb, var(--kill) 35%, transparent);
+  --armed-span: color-mix(in srgb, var(--armed) 35%, transparent);
+  --trip-span: color-mix(in srgb, var(--trip) 40%, transparent);
   --shadow: 0 8px 24px -16px var(--shadow-ink);
 }
 * { box-sizing: border-box; }
@@ -24,13 +27,24 @@ code, time { font-family: var(--font-mono); font-size: .85em; }
 .check input { width: 24px; height: 24px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.top { position: relative; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; align-items: flex-end; padding: 20px 0 14px; border-bottom: 4px solid var(--ink);
-  background: repeating-linear-gradient(-45deg, transparent 0 14px, color-mix(in srgb, var(--hazard) 14%, transparent) 14px 28px); max-width: 1320px; margin: 0 auto; }
+/* Shell bar (STANDALONE-UI-PATTERNS.md section 1): Core Dark in both themes, Ping Red gradient rule, full-bleed; wraps at 600px. */
+.shell-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding: 10px 20px; margin: 0 -16px;
+  background: var(--box-dark); color: var(--on-box); border-bottom: 3px solid transparent; border-image: var(--accent-gradient) 1; }
+.shell-bar h1 { color: var(--on-box); font-size: 1.2rem; }
+.shell-brand { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.shell-logo { display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 4px; background: var(--accent-gradient); color: var(--on-accent); font-weight: 800; font-size: .8rem; }
+.shell-nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
+.shell-nav a { padding: 4px 12px; border-radius: 999px; border: 1px solid transparent; color: var(--on-box); text-decoration: none; font-size: .85rem; font-weight: 500; }
+.shell-nav a:hover { border-color: var(--on-box); }
+.shell-nav a[aria-current="page"] { background: var(--accent-gradient); color: var(--on-accent); font-weight: 600; }
+.shell-bar .shell-right { margin-left: auto; } /* TopMenu renders .top-menu.shell-right; its own layout stays */
+.shell-bar .badge.model { color: var(--on-box); }
+.shell-bar .top-menu__ctl { color: var(--on-box); } /* the Mode / Theme labels sit on the dark bar in both themes */
+@media (max-width: 600px) { .shell-bar { padding: 10px 16px; } .shell-nav { order: 3; flex-basis: 100%; } }
 .tag { margin: .3rem 0 0; color: var(--muted); max-width: 52ch; }
 .mode-toggle { display: inline-flex; gap: 4px; }
-.top-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-main { max-width: 1320px; margin: 0 auto; padding: 16px 0; display: grid; gap: 16px; }
-main:focus { outline: none; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px 0 32px; display: grid; gap: 16px; }
+main:focus:not(:focus-visible) { outline: none; }
 .cols { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
 
@@ -88,7 +102,7 @@ label.check input { min-height: 0; padding: 0; width: 18px; height: 18px; }
 .fbox span { color: var(--muted); }
 .fbox em { font: 700 12px var(--font-mono); font-style: normal; }
 .fbox.on { border-color: var(--armed); background: var(--armed-bg); }
-.fbox.bad { border-color: var(--kill); background: var(--kill-bg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--kill) 35%, transparent); }
+.fbox.bad { border-color: var(--kill); background: var(--kill-bg); box-shadow: 0 0 0 3px var(--kill-ring); }
 .fbox.bad::after { content: "\2715 stopped here"; font: 700 10px var(--font-mono); color: var(--kill); }
 .fbox.dim { opacity: .55; }
 .fbox .react-flow__handle { opacity: 0; }
@@ -143,8 +157,8 @@ label.check input { min-height: 0; padding: 0; width: 18px; height: 18px; }
 .gap-big strong { font: 800 2rem var(--font-primary); color: var(--kill); display: block; }
 .timeline { position: relative; overflow-x: clip; height: 92px; margin: 14px 8px 8px; }
 .timeline .axis { position: absolute; left: 0; right: 0; top: 40px; height: 2px; background: var(--line); }
-.timeline .span { position: absolute; top: 34px; height: 14px; background: color-mix(in srgb, var(--armed) 35%, transparent); border: 2px solid var(--armed); border-radius: 2px; }
-.timeline .span.leak { background: color-mix(in srgb, var(--trip) 40%, transparent); border-color: var(--trip); }
+.timeline .span { position: absolute; top: 34px; height: 14px; background: var(--armed-span); border: 2px solid var(--armed); border-radius: 2px; }
+.timeline .span.leak { background: var(--trip-span); border-color: var(--trip); }
 .mark { position: absolute; top: 0; transform: translateX(-4px); font: 700 .7rem var(--font-mono); white-space: nowrap; }
 .mark i { display: block; width: 4px; height: 64px; background: currentColor; margin-bottom: 2px; }
 .mark.m-stop { color: var(--reset); transform: none; } .mark.m-leak { color: var(--trip); top: 14px; } .mark.m-leak i { height: 42px; width: 3px; }
