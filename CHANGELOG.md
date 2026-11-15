@@ -2,6 +2,7 @@
 
 ## 0.1.0 (unreleased)
 
+- Verification mark in the header: the shared `VerifyMark` (vendored from AI-DEMO-Standalone `shared/verify-mark`, byte for byte, pinned) shows this lab's Verified / In progress mark from the demo shelf, beside the Shelf link. It reads the same `GET /api/shelf` call the Shelf link makes, so it shows through the lab-proxy (where that call reaches the shelf) and nothing when the lab is opened on its own port, when the shelf has no mark for it, or when the shelf is unreachable.
 - Mock/Real toggle in the header, `GET /api/info`, `POST /api/mode`. Mock only by design: Real is disabled (409 from the API).
 
 - KS0: server core. Injectable clock; stub token service (short-lived tokens, revocation list, issuance switch); mock gateway with a sliding-window rate cap, a token and money cost cap, a per-call kill-switch check, token validation (introspect or local with a stale revocation list) and the armed / tripped / killed / reset state machine with a global switch; in-flight call semantics (finish or cancel); cooldown and auto-reset for rate trips; operator kill and unrevoke (audited); scripted runaway agent and nine scenarios; event cursor; HMAC hash-chained audit with verify; HTTP API; `GET /api/health` (`demo-health/1`); doctor; loopback-published Docker files; gitleaks pre-commit hook; red-check script. No web UI yet.

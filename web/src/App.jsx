@@ -15,6 +15,7 @@ import TalkTrack from "./components/TalkTrack.jsx";
 import Tokens from "./components/Tokens.jsx";
 import TopMenu from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink.jsx";
+import VerifyMark from "./components/VerifyMark.jsx";
 import ReturnLink from "./return-link/ReturnLink.jsx";
 import { readReturnContext } from "./return-link/returnTargets.js";
 import { scenarioFor } from "./handoffMap.js";
@@ -242,6 +243,7 @@ export default function App() {
         >
           <ReturnLink app="agent-kill-switch" variant="header" />
           <ShelfLink />
+          <VerifyMark id="agent-kill-switch" />
           <ModelBadge />
         </TopMenu>
       </header>
