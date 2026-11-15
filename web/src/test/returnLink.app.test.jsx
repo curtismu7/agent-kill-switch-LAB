@@ -48,7 +48,7 @@ describe("return link", () => {
     render(<App />);
     expect(screen.getByRole("note", NOTE).textContent).toContain("UC18");
     expect(screen.getAllByRole("button", { name: /Back to Customer Agent LAB/ })).toHaveLength(2);
-    expect(document.querySelector("header.top .top-right button.return-link--header")).not.toBeNull();
+    expect(document.querySelector("header.shell-bar .shell-right button.return-link--header")).not.toBeNull();
     await waitFor(() => expect(screen.getByTestId("scenario-select")).toHaveValue("rate-loop"));
   });
 

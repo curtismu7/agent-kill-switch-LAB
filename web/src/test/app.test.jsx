@@ -141,7 +141,7 @@ test("a local build shows no hosted banner", async () => {
 test("the Mock/Real toggle is in the header: Mock pressed, Real disabled with the server's reason as its tooltip", async () => {
   setup();
   const { container } = render(<App />);
-  const header = container.querySelector("header.top");
+  const header = container.querySelector("header.shell-bar");
   const select = await within(header).findByTestId("mode-select");
   await waitFor(() => expect(select).toHaveValue("mock"));
   const real = select.querySelector('option[value="real"]');
