@@ -1,4 +1,4 @@
-# Talk track (4-6 minutes)
+# Talk track (4-6 minutes, plus 90 s for the optional real-console step)
 
 Setup: `npm run build && npm start`, open http://127.0.0.1:6550/. Press **Reset** first so the page is clean. Panel names below are the headings on the page.
 
@@ -17,12 +17,14 @@ Setup: `npm run build && npm start`, open http://127.0.0.1:6550/. Press **Reset*
 7. **The gap (45 s).** Reset, pick `Revoked token, stale gateway`, **Run**. Open **The gap: revoke to first refused call**. Say: "If a gateway validates tokens locally, calls can get through until its revocation list refreshes. Short token lifetimes shrink that window."
 8. **Blast radius (30 s).** Reset, pick `Two agents, one killed`, **Run**. Show **Blast radius**. Say: "Alpha is stopped, beta carries on. The global switch, **Kill ALL agents**, is the only thing that stops both."
 9. **Unrevoke and audit (45 s).** Pick `Manual kill mid-run`, Run, then in **Kill switch** type an operator name, press **Unrevoke**, then **Confirm unrevoke**. In **Audit trail** press **Verify chain**. Say: "Putting access back is a deliberate, audited act. The chain is tamper-evident inside this process."
+10. **Optional, real console: quarantine a real agent (90 s, outside this lab).** Say: "Everything so far was a model. Now the same move in the real product, on a throwaway agent built only for this." In the PingOne Privilege console open **AI Platform Agents**, **Agents**, pick the demo agent (tagged `purpose:quarantine-test`), and in its **Actions** panel under **Security response** press **Quarantine** (tooltip: "Block all invocations immediately, reversible"). From a terminal invoke the agent: it now fails with `AccessDeniedException`. Say: "Privilege did not delete the agent or touch its permissions. It put a deny on invoking that one agent. Nothing else moved." Then press **Release quarantine**, confirm **Release** in the **Restore this runtime?** dialog, and invoke again: it answers. Say: "Putting access back is a deliberate act too, like Unrevoke in step 9."
 
 ## If asked: what is real and what is not
 
 - Simulated: the agent, gateway, token service, tools, clock, prices. All numbers (windows, budgets, TTLs, cooldowns) are invented.
 - UNVERIFIED: how any real product implements revoke, rate caps or cost caps. The behaviour is modelled on an internal demo environment and has not been checked against product documentation. This app makes no claim about real defaults, limits or latency.
 - Does not prove: that a real gateway or token service behaves this way, that a real agent can be stopped in a given time, or who the operator is (there is no login; the operator name is a label). The audit chain does not prove integrity to a third party and is lost when the process exits.
+- Step 10 is the only real part, and this lab neither runs nor tests it. It needs a Ping tenant connected to an AWS AgentCore account and a throwaway agent in that account (one with its own execution role, so nothing else can be affected). Skip it when there is no such setup. Observed once (one tenant, one agent, one region, 2026-11-18): quarantine added a resource policy that denies `bedrock-agentcore:InvokeAgentRuntime` to everyone on that agent's runtime, and release removed it; the runtime, its role and its tags did not change. That is an observation, not a documented guarantee. Never run it against a live agent.
 - Time is scenario time: token countdowns move as the script moves, not with your wall clock.
 
 ## Likely questions
@@ -32,6 +34,8 @@ Setup: `npm run build && npm start`, open http://127.0.0.1:6550/. Press **Reset*
 3. **Can one bad agent take down the others?** Not here: caps, tokens and state are per agent. Only the global kill stops all.
 4. **Who can pull the switch, and can a web page do it?** Anyone who can reach the local page; there is no login. A page on another origin cannot: cross-origin writes are refused.
 5. **Is this what the product does?** It is a model, UNVERIFIED against product documentation. Use it to discuss the pattern, not to quote limits.
+6. **Does quarantine stop sessions that are already running?** Not tested. It was observed to block new invocations of the agent; do not claim more.
+7. **Is the real quarantine the same as this kill switch?** Same intent (stop the next call, reversible, audited act), different mechanism: the lab revokes a token, the console put a deny on invoking the agent. Do not equate them.
 
 ## Reset before the next demo
 
