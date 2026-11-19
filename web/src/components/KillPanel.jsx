@@ -43,7 +43,7 @@ export default function KillPanel({ agents, global, operator, setOperator, reaso
   const [askGlobal, setAskGlobal] = useState(false);
   return (
     <section className="panel hazard" aria-labelledby="kill-h">
-      <h2 id="kill-h" tabIndex={-1}>Kill switch</h2>
+      <h2 id="kill-h" tabIndex={-1}><span className="step-num" data-n="4" aria-hidden="true"></span>Kill switch</h2>
       <ModelNote>Kill, trip, unrevoke and auto-reset are reproduced from the AI-DEMO2 demo environment. How a real PingOne product implements revoke is unverified here.</ModelNote>
       <div className="op-form">
         <label>Operator name<input value={operator} maxLength={40} onChange={(e) => setOperator(e.target.value)} autoComplete="off" /></label>

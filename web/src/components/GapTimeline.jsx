@@ -7,7 +7,7 @@ export default function GapTimeline({ gap, tokens, config, nowMs }) {
   if (!gap) {
     return (
       <section className="panel" aria-labelledby="gap-h">
-        <h2 id="gap-h">The gap: revoke to first refused call</h2>
+        <h2 id="gap-h"><span className="step-num" data-n="6" aria-hidden="true"></span>The gap: revoke to first refused call</h2>
         <p className="empty">Nothing has been stopped yet. Run &ldquo;Manual kill mid-run&rdquo; or &ldquo;Revoked token, stale gateway&rdquo; to see the gap.</p>
       </section>
     );
@@ -26,7 +26,7 @@ export default function GapTimeline({ gap, tokens, config, nowMs }) {
   const target = gap.agentId ? agentName(gap.agentId) : "all agents";
   return (
     <section className="panel" aria-labelledby="gap-h">
-      <h2 id="gap-h">The gap: revoke to first refused call</h2>
+      <h2 id="gap-h"><span className="step-num" data-n="6" aria-hidden="true"></span>The gap: revoke to first refused call</h2>
       <p className="gap-big" data-testid="gap-summary">
         <strong>{gapMs === null ? "no refused call yet" : ms(gapMs)}</strong>
         <span> between {instant ? "the trip" : "the revoke"} of {target} and the first refused call; {plural(gap.leaked.length, "call")} got through in between.</span>

@@ -5,7 +5,7 @@ export default function AuditPanel({ audit, verify, onVerify, busy }) {
   const rows = [...audit.entries].reverse().slice(0, 30);
   return (
     <section className="panel" aria-labelledby="audit-h">
-      <h2 id="audit-h">Audit trail</h2>
+      <h2 id="audit-h"><span className="step-num" data-n="9" aria-hidden="true"></span>Audit trail</h2>
       <p className="hint">Append-only. Every entry carries a keyed hash of its content and of the entry before it, so an edit or a deletion breaks the chain. The key stays inside the server process.</p>
       <div className="audit-bar">
         <button type="button" className="btn" onClick={onVerify} disabled={busy}>Verify chain</button>

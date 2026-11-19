@@ -9,7 +9,7 @@ export default function Feed({ events }) {
   const rows = events.filter((e) => SHOWN.includes(e.type)).slice(-60).reverse();
   return (
     <section className="panel" aria-labelledby="feed-h">
-      <h2 id="feed-h">Live activity</h2>
+      <h2 id="feed-h"><span className="step-num" data-n="5" aria-hidden="true"></span>Live activity</h2>
       {rows.length === 0 ? <p className="empty">No activity yet. Pick a scenario and press Run, Step or Simulate.</p> : (
         <div className="feed" role="log" tabIndex={0} aria-label="Agent and gateway activity, newest first" data-testid="feed">
           <ol>

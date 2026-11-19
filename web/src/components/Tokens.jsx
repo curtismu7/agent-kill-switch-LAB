@@ -7,7 +7,7 @@ export default function Tokens({ tokens, nowMs, ttlMs }) {
   const rows = [...tokens].reverse().slice(0, 10);
   return (
     <section className="panel" aria-labelledby="tok-h">
-      <h2 id="tok-h">Access tokens</h2>
+      <h2 id="tok-h"><span className="step-num" data-n="7" aria-hidden="true"></span>Access tokens</h2>
       <p className="hint">Opaque, short-lived, issued by a stub token service (lifetime here: {ttlMs / 1000} s, an invented number). Token values are never shown or sent to this page, only ids. Time here is the scenario's own clock: it moves when the script moves, not with your wall clock.</p>
       {rows.length === 0 ? <p className="empty">No token issued yet.</p> : (
         <ul className="tokens" data-testid="tokens">

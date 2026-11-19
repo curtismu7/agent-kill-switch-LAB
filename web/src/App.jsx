@@ -259,7 +259,7 @@ export default function App() {
         {showTalk && <TalkTrack />}
 
         <section className="panel controls" aria-labelledby="ctl-h">
-          <h2 id="ctl-h">Run it</h2>
+          <h2 id="ctl-h"><span className="step-num" data-n="1" aria-hidden="true"></span>Run it</h2>
           <div className="ctl-row">
             <label>Scenario
               <select value={scenarioId} onChange={(e) => setScenarioId(e.target.value)} data-testid="scenario-select">
@@ -287,17 +287,17 @@ export default function App() {
         </section>
 
         <section className="panel" aria-labelledby="flow-h">
-          <h2 id="flow-h">Where each call goes</h2>
+          <h2 id="flow-h"><span className="step-num" data-n="2" aria-hidden="true"></span>Where each call goes</h2>
           <Flow path={path} counts={counts} theme={theme} resetKey={resetKey} caption={caption} />
         </section>
 
         {agents.length > 0 && (
           <div className="cols">
             <section className="panel" aria-labelledby="caps-h">
-              <h2 id="caps-h">Caps</h2>
+              <h2 id="caps-h"><span className="step-num" data-n="3" aria-hidden="true"></span>Caps</h2>
               <Gauges agents={agents} />
             </section>
-            <KillPanel agents={agents} global={global} operator={operator} setOperator={setOperator} reason={reason} setReason={setReason}
+            <KillPanel num={4} agents={agents} global={global} operator={operator} setOperator={setOperator} reason={reason} setReason={setReason}
               inFlight={inFlight} setInFlight={setInFlight} resetBudget={resetBudget} setResetBudget={setResetBudget} busy={busy} onKill={onKill} onUnrevoke={onUnrevoke} />
             <Feed events={events} />
             <GapTimeline gap={gaps.at(-1) || null} tokens={tokens} config={config} nowMs={nowMs} />

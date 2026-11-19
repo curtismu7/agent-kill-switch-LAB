@@ -11,7 +11,7 @@ export default function BlastRadius({ agents, global }) {
   else if (stopped.length === agents.length) verdict = "Both agents are stopped.";
   return (
     <section className="panel" aria-labelledby="blast-h">
-      <h2 id="blast-h">Blast radius</h2>
+      <h2 id="blast-h"><span className="step-num" data-n="8" aria-hidden="true"></span>Blast radius</h2>
       <p className="lesson" data-testid="blast-verdict" role="status">{verdict}</p>
       <div className="blast">
         {agents.map((a) => (
