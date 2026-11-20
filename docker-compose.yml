@@ -9,7 +9,7 @@ services:
     ports:
       - "127.0.0.1:6550:6550"
     environment:
-      SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
+      SHELF_URL: ${SHELF_URL:-https://local.ping-devops.com:8443/demo-shelf}
       KILL_SWITCH_PORT: "6550"
       KILL_SWITCH_BIND: 0.0.0.0
       LAB_ALLOWED_HOSTS: ${LAB_ALLOWED_HOSTS:-agent-kill-switch.local.ping-devops.com}
