@@ -77,5 +77,5 @@ test('compose keeps no-new-privileges, and the container port setting is the pub
 });
 
 test('compose passes a usable SHELF_URL so the header Shelf button shows in Docker', () => {
-  assert.match(code, /SHELF_URL:\s*\$\{SHELF_URL:-http:\/\/127\.0\.0\.1:4400\}/);
+  assert.match(code, /SHELF_URL:\s*\$\{SHELF_URL:-https:\/\/local\.ping-devops\.com:8443\/demo-shelf\}/);
 });
