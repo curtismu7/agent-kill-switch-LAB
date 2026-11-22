@@ -108,11 +108,30 @@ Each scenario declares its expected end state; the run response carries `run.exp
 
 ## API
 
-`GET /api/health` (`demo-health/1`), `/api/scenarios`, `/api/agents`, `/api/state`, `/api/events?since=&limit=`, `/api/audit?after=&limit=`, `/api/audit/verify`;
+`GET /api/health` (`demo-health/1`), `/api/scenarios`, `/api/agents`, `/api/state`, `/api/events?since=&limit=`, `/api/audit?after=&limit=`, `/api/audit/verify`, `/api/run-observability`;
 `POST /api/scenarios/:id/run`, `/api/scenarios/:id/step`, `/api/kill`, `/api/unrevoke`, `/api/reset`; `GET /api/info` and `POST /api/mode` (see Mock and Real below).
 
 * `POST /api/kill` `{scope: "agent"|"global", agentId?, operator?, reason?, inFlight?: "finish"|"cancel"}`
 * `POST /api/unrevoke` `{scope, agentId?, operator (required), reason?, resetBudget?}`
+
+## What each layer logged for this run (rule 27)
+
+Under the run controls the page shows the shared **What each layer logged for this run** panel: one run in time order across six layers, each row with its timestamp, an outcome and an origin tag. It is built from the events the lab already stored (the Live activity feed's events), never from a re-run, and `GET /api/run-observability` returns it (`{ record }`, or `{ record: null, message }` before a run). Every row is **simulated**: the lab's mock computed it, none was read from a product log, and there is no Real record (this demo has no Real mode, so the panel says so instead of offering one).
+
+| Layer | What it holds in this lab |
+|---|---|
+| Person | the operator's kill or unrevoke click, with the name typed into the form (or the script's `demo-script`). The lab has no sign-in, so no one is ever logged as signed in; a run with no operator action says so |
+| Agent | the stub token service issuing a token to the scripted agent, or withholding one after a trip or kill |
+| Authorize | not logged: the lab does not call PingOne Authorize |
+| Privilege | not logged: the lab does not call Privilege |
+| Agent gateway | the mock gateway's decisions: a call let through (allowed), a call stopped by the kill switch or a cap (blocked), an ordinary check that did not pass (refused), a trip or auto-reset (information) |
+| Resource server | the mock tool's own end of work on the scenario clock (a call authorised before a kill runs to its end). The mock tools return nothing |
+
+A revoke blocks the next call and in-flight calls finish, as everywhere else in this demo; a token issued, a counter ticking and the operator's click are information, never counted as a pass. A run is one scenario run: Run, Step and Simulate start a new one (a new run replaces an unfinished one), and an operator action after a run has finished is written to stdout but joins no record. Reset forgets the run.
+
+**Time** is the lab's scenario clock (see above): each event is stamped once, where it is computed, and the stdout line and the row carry that same stamp. Events of one script step share an instant and are shown in the order the lab computed them.
+
+**Where the logs live and where they stream.** The server writes one line per event to its stdout (the container log), for example `2026-11-22T10:00:03.250Z agent-kill-switch decision step=call-stopped actor=agent-alpha agent=agent-alpha result=stopped cause=killed run=run-1`: actor, agent, result and cause, never a token. The family log collector can ship that container's stdout to `demo-logs-agent-kill-switch` and from there to a SIEM; the lab does not ship it itself, reads no log and has no Elasticsearch or Docker-socket setting. PingOne Authorize, Privilege and the agent gateway are not run by this lab, so there is nothing of theirs to stream. The panel files (`web/src/run-observability/`, `server/src/runObservability.js`) are vendored byte for byte from the shared canonical and pinned by `run-observability.sha256`; `scripts/run-observability.pin.test.mjs` fails on an edited or unpinned copy.
 
 ## Mock and Real
 

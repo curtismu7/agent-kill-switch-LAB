@@ -17,6 +17,7 @@ function setup({ state = snapshot(), events = [] } = {}) {
   api.getScenarios.mockResolvedValue({ scenarios: SCEN });
   api.getState.mockImplementation(async () => current);
   api.getEvents.mockImplementation(async (since) => { const out = evs.filter((e) => e.seq > since); return { events: out, next: out.length ? out.at(-1).seq : since, head }; });
+  api.getRunObservability.mockResolvedValue({ record: null, message: "No run yet" });
   api.getAudit.mockResolvedValue({ entries: [], size: 0 });
   return { set(s, e = []) { current = s; evs = [...evs, ...e]; head = evs.length; } };
 }

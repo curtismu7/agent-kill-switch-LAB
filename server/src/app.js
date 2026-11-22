@@ -14,6 +14,9 @@ import { describeScenario, getScenario } from './scenarios.js';
 import { MODELS, TOOLS } from './policy.js';
 import { shelfInfo } from './shelfLink.js';
 
+// Rule 27: each decision the lab computes is one timestamped stdout line (see runObs.js).
+const stdoutLine = (line) => process.stdout.write(`${line}\n`);
+
 export const DEFAULT_WEB_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 // The built UI is served from this server, so it is same-origin with the API. It may load script, style, image and fetch from itself only.
 export const UI_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -94,6 +97,17 @@ function buildApi(runtime) {
       res.json({ mode: runtime.mode, entries: runtime.audit.list({ after, limit }), headSeq: runtime.audit.headSeq, size: runtime.audit.size });
     }).all(methods('GET'));
     api.route('/audit/verify').get((_req, res) => res.json({ mode: runtime.mode, ...runtime.audit.verify() })).all(methods('GET'));
+
+    // Rule 27: what each layer logged for the current run, built from the events the runtime already stored. Mock only: this demo has no Real mode.
+    api.get('/run-observability', async (_req, res) => {
+      try {
+        const record = await runtime.runLog.record();
+        res.json(record ? { record } : { record: null, message: 'No run yet in this workspace: pick a scenario and press Run, Step or Simulate.' });
+      } catch (e) {
+        console.error(`[agent-kill-switch] run-observability failed: ${String(e?.code || e?.name || 'Error').slice(0, 40)}: ${String(e?.message).replace(/[\r\n]+/g, ' ').slice(0, 200)}`);
+        res.status(500).json({ error: 'internal_error', message: 'The run observability record could not be built.' });
+      }
+    });
 
     api.post('/reset', (req, res) => {
       if (req.body && Object.keys(req.body).length) return bad(res, 'POST /api/reset takes no parameters');
@@ -179,7 +193,7 @@ export async function startHttpServer({ port = serverPort(), host = bindHost(), 
   const hosted = isHosted(env);
   const publicHost = publicHostOf(env);
   const allowedHosts = allowedHostsFrom(env); // before the workspaces and the health timer start: a bad name must leave nothing running
-  const workspaces = runtime ? null : createWorkspaces({ hosted });
+  const workspaces = runtime ? null : createWorkspaces({ hosted, log: stdoutLine });
   const health = createHealth({ demoId: 'agent-kill-switch', demoName: 'Agent Kill Switch', version: '0.1.0', runChecks: (a) => defaultChecks(a), allPassed, env });
   return new Promise((resolve, reject) => {
     const httpServer = createApp({ runtime, workspaces, health, webDist, publicHost, allowedHosts, env }).listen(port, host);

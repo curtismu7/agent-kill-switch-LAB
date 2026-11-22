@@ -184,3 +184,4 @@ label.check input { min-height: 0; padding: 0; width: 18px; height: 18px; }
 
 .talk { max-width: 52rem; }
 .talk__step { padding-left: 8px; border-left: 3px solid var(--accent); }
+.ro-lab-note { margin-top: 12px; }

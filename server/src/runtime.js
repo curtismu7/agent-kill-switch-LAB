@@ -4,6 +4,7 @@
 import { createAudit } from './audit.js';
 import { createClock, wallNow as realNow } from './clock.js';
 import { createEvents } from './events.js';
+import { createRunLog } from './runObs.js';
 import { createGateway } from './gateway.js';
 import { AGENTS, DEFAULT_GATEWAY, MODELS, TOOLS, deriveAgentKey } from './policy.js';
 import { SCENARIOS, getScenario } from './scenarios.js';
@@ -13,8 +14,9 @@ export const TRANSCRIPT_CAP = 300;
 const OPERATOR = 'demo-script';
 const TOKEN_REASONS = new Set(['token_expired', 'token_revoked', 'token_unknown', 'token_missing']);
 
-export function createRuntime({ clock = createClock(), wallNow = realNow, auditStore, auditCap, hosted = false } = {}) {
-  const events = createEvents({ clock });
+export function createRuntime({ clock = createClock(), wallNow = realNow, auditStore, auditCap, hosted = false, log = () => {} } = {}) {
+  const runLog = createRunLog({ write: log });
+  const events = createEvents({ clock, onEmit: runLog.observe });
   const audit = createAudit({ store: auditStore, now: () => new Date(wallNow()), scenarioNow: () => clock.iso(), cap: auditCap });
   let world = null;
   let run = null;
@@ -132,7 +134,7 @@ export function createRuntime({ clock = createClock(), wallNow = realNow, auditS
   const runInfo = () => (run ? { id: run.id, scenario: run.scenario, cursor: run.cursor, total: getScenario(run.scenario).actions.length, done: run.done, counts: structuredClone(run.counts), expectation: run.expectation, transcript: structuredClone(run.transcript) } : null);
 
   return {
-    clock, audit, events, mode: 'demo', hosted,
+    clock, audit, events, runLog, mode: 'demo', hosted,
     get gateway() { return world.gateway; },
     scenarios: SCENARIOS,
     // Start the scenario afresh and execute every action.

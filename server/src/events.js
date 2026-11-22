@@ -14,14 +14,17 @@ const clean = (v, depth = 0) => {
   return undefined;
 };
 
-export function createEvents({ clock, cap = EVENT_CAP } = {}) {
+// `onEmit(event)` is called with each stored event right after it was stamped, once, in order (the run-observability log uses it).
+export function createEvents({ clock, cap = EVENT_CAP, onEmit = () => {} } = {}) {
   let seq = 0;
   let buf = [];
   return {
     emit(type, agentId, data = {}) {
       seq += 1;
-      buf.push(Object.freeze({ seq, at: clock.iso(), type, agentId: agentId === null || agentId === undefined ? null : clean(String(agentId)), data: clean(data) }));
+      const event = Object.freeze({ seq, at: clock.iso(), type, agentId: agentId === null || agentId === undefined ? null : clean(String(agentId)), data: clean(data) });
+      buf.push(event);
       if (buf.length > cap) buf = buf.slice(buf.length - cap);
+      onEmit(event);
       return seq;
     },
     // `next` is the cursor to pass back as `since`. `oldest` lets a slow client notice that it missed events.
