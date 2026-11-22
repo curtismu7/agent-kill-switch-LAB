@@ -28,3 +28,5 @@ export const stepScenario = (id) => call(`/api/scenarios/${encodeURIComponent(id
 export const postReset = () => call("/api/reset", "POST", {});
 export const postKill = (body) => call("/api/kill", "POST", body);
 export const postUnrevoke = (body) => call("/api/unrevoke", "POST", body);
+// Rule 27: what each layer logged for the current run: { record } or { record: null, message }. A failure throws like every call here (message from { error, message }).
+export const getRunObservability = () => call("/api/run-observability");

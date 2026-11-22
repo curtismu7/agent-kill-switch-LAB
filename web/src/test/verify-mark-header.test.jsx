@@ -16,6 +16,7 @@ beforeEach(() => {
   api.getScenarios.mockResolvedValue({ scenarios: SCEN });
   api.getState.mockResolvedValue(snapshot());
   api.getEvents.mockResolvedValue({ events: [], next: 0, head: 0 });
+  api.getRunObservability.mockResolvedValue({ record: null, message: "No run yet" });
   api.getAudit.mockResolvedValue({ entries: [], size: 0 });
 });
 

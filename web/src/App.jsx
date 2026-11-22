@@ -10,6 +10,7 @@ import GapTimeline from "./components/GapTimeline.jsx";
 import Gauges from "./components/Gauges.jsx";
 import KillPanel from "./components/KillPanel.jsx";
 import { ModelBadge } from "./components/Badges.jsx";
+import RunObs from "./components/RunObs.jsx";
 import Story from "./components/Story.jsx";
 import TalkTrack from "./components/TalkTrack.jsx";
 import Tokens from "./components/Tokens.jsx";
@@ -306,6 +307,10 @@ export default function App() {
             <AuditPanel audit={audit} verify={verify} onVerify={onVerify} busy={busy} />
           </div>
         )}
+
+        <div className="panel">
+          <RunObs run={run} tick={events.at(-1)?.seq ?? 0} source={info?.source === "real" ? "real" : "mock"} />
+        </div>
 
         <footer className="prov">
           <h2>What is real here, and what is not</h2>

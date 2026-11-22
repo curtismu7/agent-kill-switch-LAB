@@ -21,13 +21,13 @@ function cookieValue(header) {
   return null;
 }
 
-export function createWorkspaces({ hosted = false, cap = WORKSPACE_CAP, make = (opts) => createRuntime(opts) } = {}) {
+export function createWorkspaces({ hosted = false, cap = WORKSPACE_CAP, log = () => {}, make = (opts) => createRuntime(opts) } = {}) {
   const live = new Map(); // id -> runtime; Map order is recency (a touch moves the id to the end)
 
   function runtimeFor(id) {
     const rt = live.get(id);
     if (rt) { live.delete(id); live.set(id, rt); return rt; }
-    const fresh = make({ hosted });
+    const fresh = make({ hosted, log });
     live.set(id, fresh);
     while (live.size > cap) live.delete(live.keys().next().value);
     return fresh;

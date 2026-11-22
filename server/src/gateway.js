@@ -56,7 +56,7 @@ export function createGateway({ clock, tokens, audit, events, limits = {}, confi
     for (const [a, rec] of due) {
       a.inflight.delete(rec.id);
       rec.status = 'completed';
-      events.emit('call_completed', a.id, { callId: rec.id, tool: rec.tool, completedAfterStop: rec.stoppedWhileInFlight });
+      events.emit('call_completed', a.id, { callId: rec.id, tool: rec.tool, completedAfterStop: rec.stoppedWhileInFlight, endsAt: new Date(rec.endsAt).toISOString() });
     }
   }
   function stopInFlight(a, mode) {
