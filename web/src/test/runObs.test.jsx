@@ -33,9 +33,11 @@ test("after a run: the mock record, every row simulated, the Mock wording, where
   expect(screen.getByTestId("ro-basis").textContent).toMatch(/^Simulated/);
   expect(document.querySelector('tr[data-origin="logged"]')).toBeNull();
   expect(document.querySelectorAll('tr[data-origin="simulated"]').length).toBeGreaterThan(1);
-  expect(screen.getByTestId("ro-streams").textContent).toMatch(/demo-logs-agent-kill-switch/);
+  expect(screen.getByTestId("ro-streams").textContent).toMatch(/stdout/);
   expect(RUN_OBS_STREAMS.length).toBe(2);
-  expect(screen.getByTestId("ro-lab-note").textContent).toMatch(/scenario clock.*typed into a form.*stub token service.*mock tool timer/s);
+  expect(screen.getByTestId("ro-lab-note").textContent).toMatch(/scenario clock.*typed into a form.*stub token service.*in-flight tracker.*no log/s);
+  expect(screen.getByTestId("ro-streams").textContent).toMatch(/nowhere today/);
+  expect(screen.queryByTestId("ro-stdout-only")).toBeNull();
 });
 
 test("a new event asks again, and the previous record stays on screen while that is pending", async () => {
@@ -81,4 +83,23 @@ test("in Real (a test seam only) it says Real is not offered and never asks the 
   expect(screen.getByTestId("ro-real-not-offered").textContent).toMatch(/mock only by design/);
   expect(api.getRunObservability).not.toHaveBeenCalled();
   expect(screen.queryByTestId("ro-table")).toBeNull();
+});
+
+test("idle polling makes no extra requests: a new run object with the same id, cursor and done, and the same tick, does not ask again", async () => {
+  api.getRunObservability.mockResolvedValue({ record: mockRecord });
+  const { rerender } = render(<RunObs run={RUN} tick={1} source="mock" />);
+  await waitFor(() => expect(screen.getByTestId("ro-table")).toBeTruthy());
+  for (let i = 0; i < 5; i += 1) rerender(<RunObs run={{ ...RUN, transcript: [] }} tick={1} source="mock" />);
+  expect(api.getRunObservability).toHaveBeenCalledTimes(1);
+  rerender(<RunObs run={{ ...RUN, cursor: 4 }} tick={1} source="mock" />);
+  expect(api.getRunObservability).toHaveBeenCalledTimes(2);
+  rerender(<RunObs run={{ ...RUN, cursor: 4 }} tick={2} source="mock" />);
+  expect(api.getRunObservability).toHaveBeenCalledTimes(3);
+});
+
+test("events that are on stdout only (an operator action after the run ended) are counted on the page", async () => {
+  api.getRunObservability.mockResolvedValue({ record: mockRecord, stdoutOnly: { count: 2, steps: { "operator-kill": 1, "operator-unrevoke": 1 } } });
+  render(<RunObs run={RUN} tick={0} source="mock" />);
+  await waitFor(() => expect(screen.getByTestId("ro-stdout-only").textContent).toMatch(/2 events since this run ended are on stdout only, in no record: operator-kill, operator-unrevoke\./));
+  api.getRunObservability.mockResolvedValue({ record: mockRecord, stdoutOnly: { count: 0, steps: {} } });
 });

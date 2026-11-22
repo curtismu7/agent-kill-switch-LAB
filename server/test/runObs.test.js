@@ -24,14 +24,15 @@ test('a permitted-then-killed run: every row is simulated, in the order the lab 
   const r = await rec(rt);
   assert.equal(r.source, 'mock');
   assert.ok(simulated(r).length > 0 && r.rows.filter((x) => x.origin !== 'simulated' && x.origin !== 'not-logged').length === 0, 'no row is tagged logged or response');
-  assert.deepEqual(r.coverage, { person: 'simulated', agent: 'simulated', authorize: 'not-logged', privilege: 'not-logged', gateway: 'simulated', resource: 'simulated' });
+  assert.deepEqual(r.coverage, { person: 'simulated', agent: 'simulated', authorize: 'not-logged', privilege: 'not-logged', gateway: 'simulated', resource: 'not-logged' });
+  assert.match(r.reasons.resource, /no tool server/);
   for (const l of ['authorize', 'privilege']) assert.match(r.reasons[l], /does not call/);
   const kill = r.rows.findIndex((x) => x.layer === 'person' && /pressed the kill switch/.test(x.message));
   assert.ok(kill > 0);
   assert.match(r.rows[kill].message, /Operator "on-call-operator"/);
   assert.match(r.rows[kill].message, /no sign-in/);
   const gw = r.rows.filter((x) => x.layer === 'gateway' && x.origin === 'simulated');
-  const after = r.rows.slice(kill + 1).filter((x) => x.layer === 'gateway');
+  const after = r.rows.slice(kill + 1).filter((x) => x.layer === 'gateway' && x.outcome !== 'info'); // decisions, not the in-flight tracker settling
   assert.ok(after.length >= 3 && after.every((x) => x.outcome === 'blocked'), 'after the kill the gateway stops every call');
   assert.ok(gw.filter((x) => x.outcome === 'allowed').length === 3, 'the three calls before the kill went through');
   assert.ok(r.rows.slice(0, kill).filter((x) => x.layer === 'gateway' && x.outcome === 'allowed').length === 3, 'the kill row comes after the three admitted calls, never before them');
@@ -78,7 +79,7 @@ test('a cap trip: the breaching call is blocked, the trip is information, and a 
   assert.match(c.rows.find((x) => x.outcome === 'blocked').message, /cost cap would be exceeded \(/);
 });
 
-test('unrevoke and auto-reset are shown; an in-flight call finishes after the kill (resource) and a cancelled one is blocked (gateway)', async () => {
+test('unrevoke and auto-reset are shown; an in-flight call settles after the kill (gateway, information) and a cancelled one is blocked (gateway)', async () => {
   const k = make(); k.rt.runScenario('kill-unrevoke');
   const kr = await rec(k.rt);
   assert.ok(kr.rows.some((x) => x.layer === 'person' && /unrevoked/.test(x.message)));
@@ -91,7 +92,7 @@ test('unrevoke and auto-reset are shown; an in-flight call finishes after the ki
   assert.match(ar.reasons.person, /no sign-in/);
   const f = make(); f.rt.runScenario('in-flight');
   const fr = await rec(f.rt);
-  assert.ok(fr.rows.some((x) => x.layer === 'resource' && /ran to its end/.test(x.message)));
+  assert.ok(fr.rows.some((x) => x.layer === 'gateway' && /in-flight tracker settled call-0001.*ran to its end/.test(x.message)));
   const c = make();
   c.rt.stepScenario('in-flight');
   c.rt.kill({ scope: 'agent', agentId: A, operator: 'op', inFlight: 'cancel' });
@@ -104,10 +105,11 @@ test('unrevoke and auto-reset are shown; an in-flight call finishes after the ki
 test('one run per record: the next scenario replaces the open one, and an event after the final verdict joins no record', async () => {
   const { rt, lines } = make();
   rt.stepScenario('rate-loop'); rt.stepScenario('rate-loop');
-  assert.equal((await rec(rt)).runId, 'run-1');
+  const first = (await rec(rt)).runId;
+  assert.match(first, /^run-1-[0-9a-f]{6}-1$/);
   rt.stepScenario('normal'); // an unfinished run is replaced by the next one
   const second = await rec(rt);
-  assert.equal(second.runId, 'run-2');
+  assert.match(second.runId, /^run-2-[0-9a-f]{6}-2$/);
   assert.ok(simulated(second).every((x) => !/rate cap/.test(x.message)), 'nothing of run-1 in run-2');
   assert.equal(rt.runLog.current.open, true);
   rt.runScenario('normal'); // run-2 is not finished: running it again starts run-3
@@ -151,13 +153,13 @@ test('the stdout line: one per row-producing event, the same time as the row, no
       assert.equal(classify({ product, message: `[${line.split(' ')[0]}] INFO: ${line.split(' ').slice(1).join(' ')}`, at: 0, atExact: '' }, []), null, `${product} behind a header`);
     }
   }
-  for (const s of ['credential-issued', 'credential-withheld', 'call-admitted', 'call-stopped', 'cap-tripped', 'auto-reset', 'operator-kill', 'operator-unrevoke', 'call-finished', 'call-cancelled']) {
+  for (const s of ['credential-issued', 'credential-withheld', 'call-admitted', 'call-stopped', 'cap-tripped', 'auto-reset', 'operator-kill', 'operator-unrevoke', 'call-settled', 'call-cancelled']) {
     if (s === 'call-cancelled' || s === 'credential-withheld') continue; // not in a stock scenario: the next tests produce them
     assert.ok(steps.has(s), `${s} was written`);
   }
   // line time == row time, for the last run of the sweep (the kill above came after its verdict and is stdout only)
   const r = await rec(rt);
-  const own = lines.filter((l) => / run=run-9$/.test(l));
+  const own = lines.filter((l) => / run=run-9-[0-9a-f]{6}-9$/.test(l));
   assert.equal(own.length, simulated(r).length, 'one line per row');
   assert.deepEqual(own.map((l) => l.split(' ')[0]), simulated(r).map((x) => x.at));
 });
@@ -218,4 +220,140 @@ test('the route: empty before a run, one record in the workspace\'s own run, not
   await request(port, 'POST', '/api/reset', { body: {}, headers: { cookie: alice } });
   assert.equal((await get(alice)).json.record, null);
   assert.equal((await request(port, 'POST', '/api/run-observability', { body: {}, headers: { cookie: alice } })).status, 404, 'GET only');
+});
+
+const scenarioRows = async (id) => { const { rt, lines } = make(); rt.runScenario(id); return { rt, lines, r: await rec(rt) }; };
+
+test('the in-flight tracker row is a gateway row stamped when it ran, and says when the call was due to end; the Resource lane stays not logged', async () => {
+  for (const id of ['stale-token-gap', 'in-flight']) {
+    const { rt, r } = await scenarioRows(id);
+    assert.equal(r.coverage.resource, 'not-logged', id);
+    assert.ok(!r.rows.some((x) => x.layer === 'resource' && x.origin === 'simulated'), id);
+    const settled = r.rows.filter((x) => /in-flight tracker settled/.test(x.message));
+    assert.ok(settled.length > 0, id);
+    const calls = new Map(rt.gateway.calls({ limit: 200 }).map((c) => [c.id, c]));
+    for (const x of settled) {
+      assert.equal(x.layer, 'gateway'); assert.equal(x.outcome, 'info');
+      const call = calls.get(x.detail.callId);
+      assert.equal(x.detail.endsAt, new Date(call.endsAt).toISOString(), 'endsAt is the call\'s own due time');
+      assert.ok(x.message.includes(x.detail.endsAt), 'the message says when it was due');
+      assert.ok(Date.parse(x.at) >= call.endsAt, 'the stamp is when the tracker ran, never before the call was due');
+      assert.ok(!/\bended\b/.test(x.message), 'it never claims the tool ended at the stamp');
+    }
+  }
+  const { r } = await scenarioRows('in-flight');
+  const row = r.rows.find((x) => /settled call-0001/.test(x.message));
+  assert.equal(Date.parse(row.at) - Date.parse(row.detail.endsAt), 1000, 'bulk_export was due 1 s before the tracker ran (the stamp is not the end time)');
+});
+
+test('a call admitted after the kill (a gateway that does not check the kill flag) is never an unremarkable allow', async () => {
+  const { lines, r } = await scenarioRows('stale-token-gap');
+  const kill = r.rows.findIndex((x) => x.layer === 'person');
+  const admitted = r.rows.slice(kill + 1).filter((x) => x.layer === 'gateway' && x.outcome === 'allowed');
+  assert.ok(admitted.length >= 3);
+  for (const x of admitted) {
+    assert.equal(x.detail.afterKill, true);
+    assert.match(x.message, /through although agent-alpha is killed \(this scenario's gateway does not check the kill flag\)/);
+    assert.ok(x.message.length < 300, 'not cut by the 300 character cap');
+  }
+  assert.equal(r.rows.slice(0, kill).filter((x) => x.outcome === 'allowed' && x.detail?.afterKill).length, 0, 'calls before the kill are plain allows');
+  assert.equal(lines.filter((l) => /step=call-admitted .* cause=after-stop /.test(l)).length, admitted.length);
+  assert.ok(lines.filter((l) => /step=call-admitted/.test(l)).some((l) => /cause=-/.test(l)), 'calls before the kill keep cause=-');
+});
+
+test('the stopped state is tracked from the events: trip, global kill, unrevoke and auto-reset clear or set it, and a new scenario starts clean', async () => {
+  const log = createRunLog({ write: () => {} });
+  let seq = 0; const at = () => new Date(T0 + seq * 100).toISOString();
+  const ev = (type, agentId, data = {}) => { seq += 1; log.observe({ seq, at: at(), type, agentId, data }); };
+  const allowed = () => ({ callId: 'call-1', tool: 'lookup', model: 'm', tokens: 1, costMicros: 1, budget: { tokensLeft: 1 }, rate: { inWindow: 1, max: 1 } });
+  const mark = async () => (await log.record()).rows.filter((x) => x.layer === 'gateway' && x.outcome === 'allowed').at(-1).detail.afterKill === true;
+  ev('scenario_start', null, { run: 'run-1' });
+  ev('call_allowed', A, allowed());
+  {
+    assert.equal(await mark(), false);
+    ev('trip', A, { reason: 'rate_cap', tokensRevoked: 0, inFlight: 0 }); ev('call_allowed', A, allowed());
+    assert.equal(await mark(), true, 'tripped');
+    ev('auto_reset', A, { from: 'rate_cap', cooldownMs: 1 }); ev('call_allowed', A, allowed());
+    assert.equal(await mark(), false, 'auto-reset clears it');
+    ev('kill', null, { operator: 'o', tokensRevoked: 0, inFlightCount: 0, inFlightMode: 'finish' }); ev('call_allowed', B, allowed());
+    assert.equal(await mark(), true, 'global kill stops everyone');
+    ev('unrevoke', null, { operator: 'o' }); ev('call_allowed', B, allowed());
+    assert.equal(await mark(), false, 'global unrevoke');
+    ev('kill', A, { operator: 'o', tokensRevoked: 0, inFlightCount: 0, inFlightMode: 'finish' });
+    ev('scenario_start', null, { run: 'run-2' }); ev('call_allowed', A, allowed());
+    assert.equal(await mark(), false, 'a new scenario builds a fresh world: the old kill is gone');
+  }
+});
+
+test('a throwing writer or observer changes nothing: same events, same audit, same scenario result as with no writer', async () => {
+  const strip = (r) => JSON.stringify({ ...r, id: undefined });
+  const base = createRuntime({ clock: createClock({ fixed: T0 }) });
+  const baseRun = base.runScenario('rate-loop');
+  const errors = [];
+  const orig = console.error; console.error = (m) => errors.push(String(m));
+  let bad; let badRun;
+  try {
+    bad = createRuntime({ clock: createClock({ fixed: T0 }), log: () => { throw new Error('disk full'); } });
+    badRun = bad.runScenario('rate-loop');
+  } finally { console.error = orig; }
+  assert.equal(strip(badRun), strip(baseRun));
+  assert.equal(bad.events.head, base.events.head);
+  assert.deepEqual(bad.audit.list().map((e) => e.type), base.audit.list().map((e) => e.type));
+  assert.ok(bad.audit.list().some((e) => e.type === 'trip'), 'the trip is in the audit');
+  assert.ok(errors.length > 0 && errors.every((m) => /event observer failed: Error: disk full/.test(m)), errors[0]);
+  assert.equal((await bad.runLog.record()).summary.blocked, 5, 'the rows are still kept when only the writer failed');
+  // a reason that names an Object.prototype member is just an unknown reason
+  for (const reason of ['__proto__', 'constructor', 'toString']) assert.equal(rowOf({ seq: 1, at: 'x', type: 'call_denied', agentId: A, data: { callId: 'c', tool: 't', reason } }).outcome, 'refused');
+});
+
+test('an operator action after the verdict is counted for the page, and the count starts again with the next run', async (t) => {
+  const { rt } = make();
+  rt.runScenario('normal');
+  assert.deepEqual(rt.runLog.stdoutOnly, { count: 0, steps: {} });
+  rt.kill({ scope: 'agent', agentId: A, operator: 'late' });
+  rt.unrevoke({ scope: 'agent', agentId: A, operator: 'late' });
+  assert.deepEqual(rt.runLog.stdoutOnly, { count: 2, steps: { 'operator-kill': 1, 'operator-unrevoke': 1 } });
+  rt.runScenario('normal');
+  assert.deepEqual(rt.runLog.stdoutOnly, { count: 0, steps: {} });
+  const port = await freePort('spare');
+  const srv = await startHttpServer({ port, env: { HOME: '/nonexistent' } });
+  t.after(() => srv.close());
+  const cookie = String((await request(port, 'GET', '/api/state')).headers['set-cookie']).split(';')[0];
+  await request(port, 'POST', '/api/scenarios/normal/run', { body: {}, headers: { cookie } });
+  await request(port, 'POST', '/api/kill', { body: { scope: 'agent', agentId: A, operator: 'late' }, headers: { cookie } });
+  const r = await request(port, 'GET', '/api/run-observability', { headers: { cookie } });
+  assert.deepEqual(r.json.stdoutOnly, { count: 1, steps: { 'operator-kill': 1 } });
+});
+
+test('run ids are unique across a Reset and across workspaces, and safe in the stdout line', async () => {
+  const { rt, lines } = make();
+  rt.runScenario('normal'); const a = (await rec(rt)).runId;
+  rt.reset(); rt.runScenario('normal'); const b = (await rec(rt)).runId;
+  const other = make(); other.rt.runScenario('normal'); const c = (await rec(other.rt)).runId;
+  assert.equal(new Set([a, b, c]).size, 3, `${a} ${b} ${c}`);
+  for (const id of [a, b, c]) assert.match(id, /^run-\d+-[0-9a-f]{6}-\d+$/);
+  assert.ok(lines.some((l) => l.endsWith(` run=${a}`)) && lines.some((l) => l.endsWith(` run=${b}`)));
+});
+
+test('the stdout line masks an operator name typed as an email or an address, as the panel does, and still holds one key=value each', async () => {
+  const { rt, lines } = make();
+  rt.stepScenario('normal');
+  for (const operator of ['a.b@corp.example', '10.0.0.1', 'fe80::1']) rt.kill({ scope: 'agent', agentId: A, operator }) && rt.unrevoke({ scope: 'agent', agentId: A, operator });
+  const kills = lines.filter((l) => / step=operator-/.test(l));
+  assert.equal(kills.length, 6);
+  for (const l of kills) { assert.match(l, LINE); assert.ok(!/corp\.example|@|10\.0\.0\.1|fe80/.test(l), l); }
+  const r = await rec(rt);
+  assert.ok(!r.rows.some((x) => /corp\.example|10\.0\.0\.1/.test(JSON.stringify(x))), 'and the rows were already masked');
+});
+
+test('the scripted operator is not called a person typing; a typed name is', async () => {
+  const { rt } = make();
+  rt.runScenario('manual-kill');
+  let r = await rec(rt);
+  const scripted = r.rows.find((x) => x.layer === 'person');
+  assert.match(scripted.message, /^The scripted operator "demo-script" pressed the kill switch.*The scenario script did this, not a person/);
+  assert.ok(!/typed/.test(scripted.message));
+  const t = make(); t.rt.stepScenario('normal'); t.rt.kill({ scope: 'agent', agentId: A, operator: 'ann' });
+  r = await rec(t.rt);
+  assert.match(r.rows.find((x) => x.layer === 'person').message, /^Operator "ann" pressed.*The name is only what was typed/);
 });

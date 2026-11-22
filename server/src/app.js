@@ -102,7 +102,7 @@ function buildApi(runtime) {
     api.get('/run-observability', async (_req, res) => {
       try {
         const record = await runtime.runLog.record();
-        res.json(record ? { record } : { record: null, message: 'No run yet in this workspace: pick a scenario and press Run, Step or Simulate.' });
+        res.json(record ? { record, stdoutOnly: runtime.runLog.stdoutOnly } : { record: null, message: 'No run yet in this workspace: pick a scenario and press Run, Step or Simulate.' });
       } catch (e) {
         console.error(`[agent-kill-switch] run-observability failed: ${String(e?.code || e?.name || 'Error').slice(0, 40)}: ${String(e?.message).replace(/[\r\n]+/g, ' ').slice(0, 200)}`);
         res.status(500).json({ error: 'internal_error', message: 'The run observability record could not be built.' });
