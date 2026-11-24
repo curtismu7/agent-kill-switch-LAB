@@ -31,7 +31,7 @@ code, time { font-family: var(--font-mono); font-size: .85em; }
 .shell-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding: 10px 20px; margin: 0 -16px;
   background: var(--box-dark); color: var(--on-box); border-bottom: 3px solid transparent; border-image: var(--accent-gradient) 1; }
 .shell-bar h1 { color: var(--on-box); font-size: 1.2rem; }
-.shell-brand { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.shell-brand  { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .shell-logo { display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 4px; background: var(--accent-gradient); color: var(--on-accent); font-weight: 800; font-size: .8rem; }
 .shell-nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
 .shell-nav a { padding: 4px 12px; border-radius: 999px; border: 1px solid transparent; color: var(--on-box); text-decoration: none; font-size: .85rem; font-weight: 500; }
