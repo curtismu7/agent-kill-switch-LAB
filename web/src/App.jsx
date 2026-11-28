@@ -13,6 +13,8 @@ import { ModelBadge } from "./components/Badges.jsx";
 import RunObs from "./components/RunObs.jsx";
 import Story from "./components/Story.jsx";
 import TalkTrack from "./components/TalkTrack.jsx";
+import HelpDialog from "./help-dialog/HelpDialog.jsx";
+import { HELP_SECTIONS } from "./helpContent";
 import Tokens from "./components/Tokens.jsx";
 import TopMenu from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink.jsx";
@@ -59,6 +61,7 @@ export default function App() {
   const [inFlight, setInFlight] = useState("finish");
   const [resetBudget, setResetBudget] = useState(false);
   const [showTalk, setShowTalk] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const cursor = useRef(0);
   const first = useRef(true);
   const simId = useRef(0);
@@ -237,7 +240,7 @@ export default function App() {
         <TopMenu
           mode={{ value: info?.source === "real" ? "real" : "mock", onChange: (s) => guard(() => onSelectMode(s)), realAvailable: info ? info.realAvailable === true : null, realHint: info && !info.realAvailable ? info.realReason : undefined }}
           theme={{ value: theme, onChange: setThemePersist }}
-          help={{ href: "https://github.com/curtismu7/agent-kill-switch-LAB#readme" }}
+          help={{ onClick: () => setHelpOpen(true), title: "What this lab is, and what is simulated" }}
           version={info?.version || null}
           onReset={onReset}
           talkTrack={{ active: showTalk, onToggle: () => setShowTalk((v) => !v) }}
@@ -258,6 +261,8 @@ export default function App() {
         <Story stage={stage} scenario={scenario} />
 
         {showTalk && <TalkTrack />}
+
+        <HelpDialog isOpen={helpOpen} onClose={() => setHelpOpen(false)} sections={HELP_SECTIONS} docsUrl="https://github.com/curtismu7/agent-kill-switch-LAB#readme" />
 
         <section className="panel controls" aria-labelledby="ctl-h">
           <h2 id="ctl-h"><span className="step-num" data-n="1" aria-hidden="true"></span>Run it</h2>
